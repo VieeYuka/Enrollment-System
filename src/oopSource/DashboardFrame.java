@@ -35,7 +35,11 @@ public class DashboardFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private String loggedInUser;
+<<<<<<< HEAD
 	private String loggedInRole;
+=======
+	private String LoggedInRole;
+>>>>>>> origin/ui
 
 	// Dark Teal Theme Colors
 	private static final Color DARK_TEAL = new Color(11, 55, 49);
@@ -65,6 +69,10 @@ public class DashboardFrame extends JFrame {
 	 */
 	public DashboardFrame(String username, String role) {
 		this.loggedInUser = username;
+<<<<<<< HEAD
+=======
+		
+>>>>>>> origin/ui
 		this.loggedInRole = role;
 		setTitle("Rey University - System Dashboard");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -213,7 +221,11 @@ public class DashboardFrame extends JFrame {
 		gbc_lblUsername.gridy = 0;
 		userProfilePanel.add(lblUsername, gbc_lblUsername);
 
+<<<<<<< HEAD
 		JLabel lblRole = new JLabel(loggedInRole);
+=======
+		JLabel lblRole = new JLabel("loggedInRole");
+>>>>>>> origin/ui
 		lblRole.setForeground(new Color(180, 200, 195));
 		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
 		GridBagConstraints gbc_lblRole = new GridBagConstraints();
@@ -308,7 +320,7 @@ public class DashboardFrame extends JFrame {
 		gbc_cardTotal.gridy = 1;
 		dashboardBody.add(cardTotal, gbc_cardTotal);
 
-		StatCard cardFeature3 = new StatCard("Feature 3", "100", new Color(240, 178, 75));
+		StatCard cardFeature3 = new StatCard("Pending Requests\nTotal", "100", new Color(240, 178, 75));
 		GridBagConstraints gbc_cardFeature3 = new GridBagConstraints();
 		gbc_cardFeature3.fill = GridBagConstraints.BOTH;
 		gbc_cardFeature3.weightx = 1.0;
@@ -317,7 +329,7 @@ public class DashboardFrame extends JFrame {
 		gbc_cardFeature3.gridy = 1;
 		dashboardBody.add(cardFeature3, gbc_cardFeature3);
 
-		StatCard cardFeature4 = new StatCard("Feature 4", "100", new Color(215, 78, 85));
+		StatCard cardFeature4 = new StatCard("Approved Requests\nToday", "100", new Color(215, 78, 85));
 		GridBagConstraints gbc_cardFeature4 = new GridBagConstraints();
 		gbc_cardFeature4.fill = GridBagConstraints.BOTH;
 		gbc_cardFeature4.weightx = 1.0;
