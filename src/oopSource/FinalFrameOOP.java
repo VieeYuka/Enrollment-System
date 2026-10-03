@@ -14,6 +14,11 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -248,16 +253,66 @@ public class FinalFrameOOP extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 String username = txtUsername.getText().trim();
                 String password = new String(txtPassword.getPassword());
-
+                String sql = "select userName, password, role from usercreds where userName = ?";
+                
                 if (username.isEmpty() || password.isEmpty()) {
                     JOptionPane.showMessageDialog(FinalFrameOOP.this, 
                             "Please enter both username and password.", 
                             "Input Error", 
                             JOptionPane.WARNING_MESSAGE);
                 } else {
-                    DashboardFrame dashboard = new DashboardFrame(username);
-                    dashboard.setVisible(true);
-                    dispose();
+                	
+                	try(Connection conn = DBConnection.getConnection();
+                		PreparedStatement pstate = conn.prepareStatement(sql);){
+                		
+                		SecurePass sp = new SecurePass(); 
+                		
+                		
+                		
+                		
+                		
+                		pstate.setString(1, username);
+                		
+                		ResultSet rs = pstate.executeQuery();
+                		
+                		if(rs.next()) {
+                			String storedHash = rs.getString("password");
+                			String role = rs.getString("role");
+                			String usern = rs.getString("userName");
+                			
+                			boolean valid = sp.passChecker(password, storedHash);
+                			
+                			if(valid) {
+                				
+                				if(role.equalsIgnoreCase("admin")) {
+                					 DashboardFrame dashboard = new DashboardFrame(usern,"admin");
+                                     dashboard.setVisible(true);
+                                     dispose();
+                				}
+                				else if(role.equalsIgnoreCase("cashier")) {
+                					
+                					DashboardFrame dashboard = new DashboardFrame(usern,"cashier");
+                                    dashboard.setVisible(true);
+                                    dispose();
+                					JOptionPane.showMessageDialog(null,"cashier");
+                				}
+                				else if(role.equalsIgnoreCase("registrar")) {
+                					JOptionPane.showMessageDialog(null, "registrar");
+                				}
+                				
+                			}
+                			else {
+                				JOptionPane.showMessageDialog(null,"wrong");
+                			}
+                		}
+                		
+                		
+                	}catch(SQLException e1) {
+                		
+                	}
+                	
+                	
+                   
                 }
             }
         });
@@ -265,6 +320,11 @@ public class FinalFrameOOP extends JFrame {
         lblEnroll.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+            	
+            	
+            	
+            	
+            	
                 EnrollFrame enrollWindow = new EnrollFrame();
                 enrollWindow.setVisible(true);
                 dispose();
