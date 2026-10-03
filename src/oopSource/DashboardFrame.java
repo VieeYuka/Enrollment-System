@@ -35,6 +35,7 @@ public class DashboardFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private String loggedInUser;
+	private String loggedInRole;
 
 	// Dark Teal Theme Colors
 	private static final Color DARK_TEAL = new Color(11, 55, 49);
@@ -49,7 +50,7 @@ public class DashboardFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					DashboardFrame frame = new DashboardFrame("Admin");
+					DashboardFrame frame = new DashboardFrame("Admin", "role");
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -62,9 +63,9 @@ public class DashboardFrame extends JFrame {
 	/**
 	 * Create the frame.
 	 */
-	public DashboardFrame(String username) {
+	public DashboardFrame(String username, String role) {
 		this.loggedInUser = username;
-
+		this.loggedInRole = role;
 		setTitle("Rey University - System Dashboard");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
@@ -212,7 +213,7 @@ public class DashboardFrame extends JFrame {
 		gbc_lblUsername.gridy = 0;
 		userProfilePanel.add(lblUsername, gbc_lblUsername);
 
-		JLabel lblRole = new JLabel("System Administrator");
+		JLabel lblRole = new JLabel(loggedInRole);
 		lblRole.setForeground(new Color(180, 200, 195));
 		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
 		GridBagConstraints gbc_lblRole = new GridBagConstraints();

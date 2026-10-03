@@ -85,7 +85,7 @@ public class DBConnection {
 			tableStmt.executeUpdate(createTable);
             
 			String sql = "INSERT INTO userCreds(userName, password, role) "
-			           + "VALUES (?, ?, ?) "
+			           + "VALUES (?, ?, ?),(?,?,?),(?,?,?) "
 			           + "ON DUPLICATE KEY UPDATE userName = userName";
 				
 				PreparedStatement pstate = conn.prepareStatement(sql);
@@ -96,6 +96,12 @@ public class DBConnection {
 				 	pstate.setString(1, "root");
 				    pstate.setString(2, "$2a$10$oUEqQQozPH3wk/gqsHqtLe6LFFmpMwqY2ZeTLDGLDsdxs1udYEdiS");
 				    pstate.setString(3, "admin");
+				    pstate.setString(4, "cashier01");
+				    pstate.setString(5, "$2a$10$IUX78sKkkJA6.GLNKKpiW.2Tkr5GTAVc.X5e.du7dSmvdhsMKfYy2");
+				    pstate.setString(6, "cashier");
+				    pstate.setString(7, "registrar01");
+				    pstate.setString(8, "$2a$10$VJsHXuaVbgYBtAnFNBqXq..Sa6RgG8ossiYrliRkKRaZ22xtZXjE.");
+				    pstate.setString(9, "registrar");
 				
 				    
 				    pstate.executeUpdate();

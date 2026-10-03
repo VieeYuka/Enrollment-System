@@ -253,7 +253,7 @@ public class FinalFrameOOP extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 String username = txtUsername.getText().trim();
                 String password = new String(txtPassword.getPassword());
-                String sql = "select password, role from usercreds where userName = ?";
+                String sql = "select userName, password, role from usercreds where userName = ?";
                 
                 if (username.isEmpty() || password.isEmpty()) {
                     JOptionPane.showMessageDialog(FinalFrameOOP.this, 
@@ -278,17 +278,22 @@ public class FinalFrameOOP extends JFrame {
                 		if(rs.next()) {
                 			String storedHash = rs.getString("password");
                 			String role = rs.getString("role");
+                			String usern = rs.getString("userName");
                 			
                 			boolean valid = sp.passChecker(password, storedHash);
                 			
                 			if(valid) {
                 				
                 				if(role.equalsIgnoreCase("admin")) {
-                					 DashboardFrame dashboard = new DashboardFrame("admin");
+                					 DashboardFrame dashboard = new DashboardFrame(usern,"admin");
                                      dashboard.setVisible(true);
                                      dispose();
                 				}
                 				else if(role.equalsIgnoreCase("cashier")) {
+                					
+                					DashboardFrame dashboard = new DashboardFrame(usern,"cashier");
+                                    dashboard.setVisible(true);
+                                    dispose();
                 					JOptionPane.showMessageDialog(null,"cashier");
                 				}
                 				else if(role.equalsIgnoreCase("registrar")) {

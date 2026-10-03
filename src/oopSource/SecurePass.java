@@ -30,7 +30,7 @@ public class SecurePass {
 		SecurePass salt = new SecurePass();
 		
 		
-		String pass = "adminHW";
+		String pass = "registrarHW";
 		String wrongpass = "banana";
 		
 		
