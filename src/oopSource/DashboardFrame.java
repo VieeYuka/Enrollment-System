@@ -307,7 +307,7 @@ public class DashboardFrame extends JFrame {
 		gbc_cardTotal.gridy = 1;
 		dashboardBody.add(cardTotal, gbc_cardTotal);
 
-		StatCard cardFeature3 = new StatCard("Feature 3", "100", new Color(240, 178, 75));
+		StatCard cardFeature3 = new StatCard("Pending Requests\nTotal", "100", new Color(240, 178, 75));
 		GridBagConstraints gbc_cardFeature3 = new GridBagConstraints();
 		gbc_cardFeature3.fill = GridBagConstraints.BOTH;
 		gbc_cardFeature3.weightx = 1.0;
@@ -316,7 +316,7 @@ public class DashboardFrame extends JFrame {
 		gbc_cardFeature3.gridy = 1;
 		dashboardBody.add(cardFeature3, gbc_cardFeature3);
 
-		StatCard cardFeature4 = new StatCard("Feature 4", "100", new Color(215, 78, 85));
+		StatCard cardFeature4 = new StatCard("Approved Requests\nToday", "100", new Color(215, 78, 85));
 		GridBagConstraints gbc_cardFeature4 = new GridBagConstraints();
 		gbc_cardFeature4.fill = GridBagConstraints.BOTH;
 		gbc_cardFeature4.weightx = 1.0;

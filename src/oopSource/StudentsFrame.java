@@ -161,7 +161,7 @@ public class StudentsFrame extends JFrame {
 		NavItem navEnrollment = new NavItem("Enrollment", false);
 		navEnrollment.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new EnrollFrame());
+				openFrame(new EnrollmentStudent());
 			}
 		});
 		navContainer.add(navEnrollment);
