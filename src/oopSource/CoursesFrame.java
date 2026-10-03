@@ -68,6 +68,7 @@ public class CoursesFrame extends JFrame {
 	private JLabel tabSchedules;
 	private CardLayout cardLayout;
 	private JPanel cardHolder;
+	private String loggedInRole;
 
 	private static final int ACTIONS_COL = 4;
 	private static final String SEARCH_HINT = "Search course code or title...";
@@ -87,7 +88,7 @@ public class CoursesFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					CoursesFrame frame = new CoursesFrame("Admin");
+					CoursesFrame frame = new CoursesFrame("Registrar","registar");
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -101,15 +102,15 @@ public class CoursesFrame extends JFrame {
 	 * Default constructor
 	 */
 	public CoursesFrame() {
-		this("Admin");
+		this("registrar01","registrar");
 	}
 
 	/**
 	 * Create the frame.
 	 */
-	public CoursesFrame(String username) {
+	public CoursesFrame(String username, String role) {
 		this.loggedInUser = username;
-
+		this.loggedInRole = role;
 		setTitle("Rey University - Courses & Schedules");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
@@ -176,7 +177,7 @@ public class CoursesFrame extends JFrame {
 		StudentsFrame.NavItem navDashboard = new StudentsFrame.NavItem("Dashboard", false);
 		navDashboard.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new DashboardFrame(loggedInUser));
+				openFrame(new DashboardFrame(loggedInUser, loggedInRole));
 			}
 		});
 		navContainer.add(navDashboard);
@@ -184,7 +185,7 @@ public class CoursesFrame extends JFrame {
 		StudentsFrame.NavItem navStudents = new StudentsFrame.NavItem("Students", false);
 		navStudents.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(loggedInUser));
+				openFrame(new StudentsFrame(loggedInUser, loggedInRole));
 			}
 		});
 		navContainer.add(navStudents);
@@ -609,7 +610,7 @@ public class CoursesFrame extends JFrame {
 			return;
 		}
 
-		EnrollmentSummaryFrame summary = new EnrollmentSummaryFrame(loggedInUser, selected, this);
+		EnrollmentSummaryFrame summary = new EnrollmentSummaryFrame(loggedInUser, selected, this, loggedInRole);
 		summary.setBounds(getBounds());
 		summary.setVisible(true);
 		setVisible(false); // hidden (not disposed) so the Back button can restore it

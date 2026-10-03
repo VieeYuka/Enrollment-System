@@ -35,11 +35,7 @@ public class DashboardFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private String loggedInUser;
-<<<<<<< HEAD
 	private String loggedInRole;
-=======
-	private String LoggedInRole;
->>>>>>> origin/ui
 
 	// Dark Teal Theme Colors
 	private static final Color DARK_TEAL = new Color(11, 55, 49);
@@ -69,16 +65,12 @@ public class DashboardFrame extends JFrame {
 	 */
 	public DashboardFrame(String username, String role) {
 		this.loggedInUser = username;
-<<<<<<< HEAD
-=======
 		
->>>>>>> origin/ui
 		this.loggedInRole = role;
 		setTitle("Rey University - System Dashboard");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
-
-		contentPane = new JPanel();
+        contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(0, 0, 0, 0));
 		setContentPane(contentPane);
 		contentPane.setLayout(new BorderLayout(0, 0));
@@ -146,7 +138,7 @@ public class DashboardFrame extends JFrame {
 		NavItem navStudents = new NavItem("Students", false);
 		navStudents.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(loggedInUser));
+				openFrame(new StudentsFrame(username,role));
 			}
 		});
 		navContainer.add(navStudents);
@@ -221,11 +213,7 @@ public class DashboardFrame extends JFrame {
 		gbc_lblUsername.gridy = 0;
 		userProfilePanel.add(lblUsername, gbc_lblUsername);
 
-<<<<<<< HEAD
-		JLabel lblRole = new JLabel(loggedInRole);
-=======
 		JLabel lblRole = new JLabel("loggedInRole");
->>>>>>> origin/ui
 		lblRole.setForeground(new Color(180, 200, 195));
 		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
 		GridBagConstraints gbc_lblRole = new GridBagConstraints();

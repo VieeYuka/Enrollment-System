@@ -33,6 +33,7 @@ public class EnrollmentStudent extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private String loggedInUser;
+	private String loggedInRole;
 
 	// Student info labels (can be updated from the database)
 	private JLabel lblStudentIdValue;
@@ -146,7 +147,7 @@ public class EnrollmentStudent extends JFrame {
 		StudentsFrame.NavItem navDashboard = new StudentsFrame.NavItem("Dashboard", false);
 		navDashboard.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new DashboardFrame(loggedInUser));
+				openFrame(new DashboardFrame(loggedInUser, loggedInRole));
 			}
 		});
 		navContainer.add(navDashboard);
@@ -155,7 +156,7 @@ public class EnrollmentStudent extends JFrame {
 		StudentsFrame.NavItem navStudents = new StudentsFrame.NavItem("Students", false);
 		navStudents.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(loggedInUser));
+				openFrame(new StudentsFrame(loggedInUser, loggedInRole));
 			}
 		});
 		navContainer.add(navStudents);
@@ -463,7 +464,7 @@ public class EnrollmentStudent extends JFrame {
 		btnCancel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
 		btnCancel.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(loggedInUser));
+				openFrame(new StudentsFrame(loggedInUser, loggedInRole));
 			}
 		});
 		GridBagConstraints gbc_cancel = new GridBagConstraints();
@@ -539,7 +540,7 @@ public class EnrollmentStudent extends JFrame {
 		// Remove the "No subjects selected yet." placeholder the first time
 		if (lblNoSubjects.getParent() != null) {
 			selectedListPanel.removeAll();
-			lblNoSubjects.setParent_removed();
+//			lblNoSubjects.setParent_removed();
 		}
 		JLabel item = new JLabel(subjectText);
 		item.setFont(new Font("Arial", Font.PLAIN, 13));

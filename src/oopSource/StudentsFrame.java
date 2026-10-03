@@ -44,6 +44,7 @@ public class StudentsFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private String loggedInUser;
+	private String loggedInRole;
 	private DefaultTableModel studentTableModel;
 
 	// Dark Teal Theme Colors
@@ -60,7 +61,7 @@ public class StudentsFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					StudentsFrame frame = new StudentsFrame("Admin");
+					StudentsFrame frame = new StudentsFrame("Students","student");
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -74,15 +75,15 @@ public class StudentsFrame extends JFrame {
 	 * Default constructor
 	 */
 	public StudentsFrame() {
-		this("Admin");
+		this("Students","Student");
 	}
 
 	/**
 	 * Create the frame.
 	 */
-	public StudentsFrame(String username) {
+	public StudentsFrame(String username, String role) {
 		this.loggedInUser = username;
-
+		this.loggedInRole = role;
 		setTitle("Rey University - Student Information Management");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
@@ -151,7 +152,7 @@ public class StudentsFrame extends JFrame {
 		NavItem navDashboard = new NavItem("Dashboard", false);
 		navDashboard.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new DashboardFrame(loggedInUser));
+				openFrame(new DashboardFrame(username, role));
 			}
 		});
 		navContainer.add(navDashboard);

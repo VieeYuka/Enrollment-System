@@ -31,7 +31,7 @@ public class EnrollmentSummaryFrame extends JFrame {
 	private JPanel contentPane;
 	private String loggedInUser;
 	private CoursesFrame parent;
-
+	private String loggedInRole;
 	private static final Color DARK_TEAL = new Color(11, 55, 49);
 	private static final Color LIGHT_BG = new Color(235, 235, 235);
 	private static final Color ACCENT_GREEN = new Color(38, 128, 98);
@@ -40,7 +40,7 @@ public class EnrollmentSummaryFrame extends JFrame {
 	 * @param rows each row = {code, title, units, department}
 	 * @param parent the hidden CoursesFrame, restored when "Back" is pressed
 	 */
-	public EnrollmentSummaryFrame(String username, List<Object[]> rows, CoursesFrame parent) {
+	public EnrollmentSummaryFrame(String username, List<Object[]> rows, CoursesFrame parent, String role) {
 		this.loggedInUser = username;
 		this.parent = parent;
 
@@ -177,7 +177,7 @@ public class EnrollmentSummaryFrame extends JFrame {
 				// TODO: save the enrollment to MySQL here
 				JOptionPane.showMessageDialog(EnrollmentSummaryFrame.this,
 						"Enrollment submitted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-				StudentsFrame next = new StudentsFrame(loggedInUser);
+				StudentsFrame next = new StudentsFrame(loggedInUser, loggedInRole);
 				next.setBounds(getBounds());
 				next.setVisible(true);
 				EnrollmentSummaryFrame.this.parent.dispose();

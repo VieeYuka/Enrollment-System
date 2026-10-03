@@ -48,7 +48,7 @@ public class TuitionFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private String loggedInUser;
-
+	private String loggedInRole;
 	private DefaultTableModel tuitionTableModel;
 	private JTable tuitionTable;
 	private TableRowSorter<DefaultTableModel> sorter;
@@ -147,7 +147,7 @@ public class TuitionFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					TuitionFrame frame = new TuitionFrame("Admin");
+					TuitionFrame frame = new TuitionFrame("Cashier01", "cashier");
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -161,15 +161,15 @@ public class TuitionFrame extends JFrame {
 	 * Default constructor
 	 */
 	public TuitionFrame() {
-		this("Admin");
+		this("Cashier01", "Cashier");
 	}
 
 	/**
 	 * Create the frame.
 	 */
-	public TuitionFrame(String username) {
+	public TuitionFrame(String username, String role) {
 		this.loggedInUser = username;
-
+		this.loggedInRole = role;
 		setTitle("Rey University - Tuition & Payments");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
@@ -180,7 +180,7 @@ public class TuitionFrame extends JFrame {
 		contentPane.setLayout(new BorderLayout(0, 0));
 
 		// ---- Left sidebar (shared) ----
-		contentPane.add(buildSidebar(this, loggedInUser), BorderLayout.WEST);
+		contentPane.add(buildSidebar(this, loggedInUser, role), BorderLayout.WEST);
 
 		// =============================================================
 		// RIGHT MAIN CONTENT AREA
@@ -336,7 +336,7 @@ public class TuitionFrame extends JFrame {
 				String id = String.valueOf(tuitionTableModel.getValueAt(modelRow, 0));
 				TuitionRecord rec = findById(id);
 				if (rec != null) {
-					navigate(TuitionFrame.this, new PaymentFrame(loggedInUser, rec));
+					navigate(TuitionFrame.this, new PaymentFrame(loggedInUser, rec, loggedInRole));
 				}
 			}
 		});
@@ -406,7 +406,7 @@ public class TuitionFrame extends JFrame {
 	}
 
 	/** Builds the dark teal sidebar with "Tuition & Payments" highlighted. */
-	static JPanel buildSidebar(final JFrame owner, final String user) {
+	static JPanel buildSidebar(final JFrame owner, final String user, final String role) {
 		JPanel sidebarPanel = new JPanel();
 		sidebarPanel.setBackground(DARK_TEAL);
 		sidebarPanel.setPreferredSize(new Dimension(280, 720));
@@ -460,7 +460,7 @@ public class TuitionFrame extends JFrame {
 		StudentsFrame.NavItem navDashboard = new StudentsFrame.NavItem("Dashboard", false);
 		navDashboard.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				navigate(owner, new DashboardFrame(user));
+				navigate(owner, new DashboardFrame(user, role ));
 			}
 		});
 		navContainer.add(navDashboard);
@@ -468,7 +468,7 @@ public class TuitionFrame extends JFrame {
 		StudentsFrame.NavItem navStudents = new StudentsFrame.NavItem("Students", false);
 		navStudents.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				navigate(owner, new StudentsFrame(user));
+				navigate(owner, new StudentsFrame(user, role));
 			}
 		});
 		navContainer.add(navStudents);
@@ -484,7 +484,7 @@ public class TuitionFrame extends JFrame {
 		StudentsFrame.NavItem navCourses = new StudentsFrame.NavItem("Courses & Schedules", false);
 		navCourses.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				navigate(owner, new CoursesFrame(user));
+				navigate(owner, new CoursesFrame(user, role));
 			}
 		});
 		navContainer.add(navCourses);
@@ -495,7 +495,7 @@ public class TuitionFrame extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				// From the payment screen this returns to the tuition list
 				if (!(owner instanceof TuitionFrame)) {
-					navigate(owner, new TuitionFrame(user));
+					navigate(owner, new TuitionFrame(user, role));
 				}
 			}
 		});
@@ -541,7 +541,7 @@ public class TuitionFrame extends JFrame {
 		gbc_lblUsername.gridy = 0;
 		userProfilePanel.add(lblUsername, gbc_lblUsername);
 
-		JLabel lblRole = new JLabel("System Administrator");
+		JLabel lblRole = new JLabel(role);
 		lblRole.setForeground(new Color(180, 200, 195));
 		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
 		GridBagConstraints gbc_lblRole = new GridBagConstraints();

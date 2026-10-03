@@ -35,18 +35,19 @@ public class PaymentFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private String loggedInUser;
+	private String loggedInRole;
 	private TuitionFrame.TuitionRecord record;
 
 	private JComboBox<String> cmbMethod;
 	private JTextField txtAmount;
 	private JLabel lblChange;
-
+	
 	private static final String PESO = TuitionFrame.PESO;
 
-	public PaymentFrame(String username, TuitionFrame.TuitionRecord record) {
+	public PaymentFrame(String username, TuitionFrame.TuitionRecord record, String role) {
 		this.loggedInUser = username;
 		this.record = record;
-
+		this.loggedInRole = role;
 		setTitle("Rey University - Process Payment");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
@@ -57,7 +58,7 @@ public class PaymentFrame extends JFrame {
 		contentPane.setLayout(new BorderLayout(0, 0));
 
 		// ---- Left sidebar (shared with TuitionFrame) ----
-		contentPane.add(TuitionFrame.buildSidebar(this, loggedInUser), BorderLayout.WEST);
+		contentPane.add(TuitionFrame.buildSidebar(this, loggedInUser, loggedInRole), BorderLayout.WEST);
 
 		// =============================================================
 		// RIGHT MAIN CONTENT AREA
@@ -313,7 +314,7 @@ public class PaymentFrame extends JFrame {
 			styleSecondary(btnBack);
 			btnBack.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					TuitionFrame.navigate(PaymentFrame.this, new TuitionFrame(loggedInUser));
+					TuitionFrame.navigate(PaymentFrame.this, new TuitionFrame(loggedInUser, loggedInRole));
 				}
 			});
 			buttons.add(btnBack);
@@ -339,7 +340,7 @@ public class PaymentFrame extends JFrame {
 		styleSecondary(btnCancel);
 		btnCancel.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				TuitionFrame.navigate(PaymentFrame.this, new TuitionFrame(loggedInUser));
+				TuitionFrame.navigate(PaymentFrame.this, new TuitionFrame(loggedInUser, loggedInRole));
 			}
 		});
 		buttons.add(btnCancel);
@@ -409,6 +410,6 @@ public class PaymentFrame extends JFrame {
 				"Payment Successful", JOptionPane.INFORMATION_MESSAGE);
 
 		// Back to the tuition table, which now shows "Paid"
-		TuitionFrame.navigate(this, new TuitionFrame(loggedInUser));
+		TuitionFrame.navigate(this, new TuitionFrame(loggedInUser, loggedInRole));
 	}
 }
