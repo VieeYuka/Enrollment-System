@@ -351,7 +351,7 @@ public class CoursesFrame extends JFrame {
 		tabsWrapper.add(tabsPanel, BorderLayout.WEST);
 		headerPanel.add(tabsWrapper, BorderLayout.CENTER);
 
-		JButton btnEnroll = new JButton(" ");
+		JButton btnEnroll = new JButton("Enroll Subjects");
 		btnEnroll.setFont(new Font("Arial", Font.BOLD, 13));
 		btnEnroll.setBackground(ACCENT_GREEN);
 		btnEnroll.setForeground(Color.WHITE);

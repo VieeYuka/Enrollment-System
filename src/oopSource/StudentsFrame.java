@@ -346,12 +346,12 @@ public class StudentsFrame extends JFrame {
 		tableCardPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
 		studentsBody.add(tableCardPanel, BorderLayout.CENTER);
 
-		JLabel lblTableTitle = new JLabel("Enrolled Student Records");
+		JLabel lblTableTitle = new JLabel("Enrollment Student Records");
 		lblTableTitle.setFont(new Font("Arial", Font.BOLD, 18));
 		lblTableTitle.setForeground(DARK_TEAL);
 		tableCardPanel.add(lblTableTitle, BorderLayout.NORTH);
 
-		String[] columns = {"Student ID", "Full Name", "Course / Program", "Year Level", "Enrollment Status", "Date Registered"};
+		String[] columns = {"Student ID", "First Name",  "Last Name", "University Email","Course", "Year Level", "Enrollment Status"};
 		studentTableModel = new DefaultTableModel(columns, 0) {
 			private static final long serialVersionUID = 1L;
 
@@ -362,10 +362,9 @@ public class StudentsFrame extends JFrame {
 		};
 
 		// Placeholder data
-		studentTableModel.addRow(new Object[]{"2026-0001", "Juan Dela Cruz", "BS Computer Science", "1st Year", "Enrolled", "2026-09-01"});
-		studentTableModel.addRow(new Object[]{"2026-0002", "Maria Santos", "BS Information Technology", "Ayoko na", "Enrolled", "2026-09-02"});
-		studentTableModel.addRow(new Object[]{"2026-0003", "John Doe", "BS Business Administration", "2nd Year", "Pending", "2026-09-03"});
-		studentTableModel.addRow(new Object[]{"2026-0004", "Anne Smith", "BS Computer Engineering", "3rd Year", "Enrolled", "2026-09-04"});
+		studentTableModel.addRow(new Object[]{"2026-0002", "Maria", "Santos",  "bastaemail@haha","BSDVM", "Ayoko na", "Enrolled"});
+		studentTableModel.addRow(new Object[]{"2026-0002", "John", "Doe",  "bastaemail@haha","BSIT", "2nd Year", "Pending"});
+		
 
 		JTable studentTable = new JTable(studentTableModel);
 		studentTable.setFont(new Font("Arial", Font.PLAIN, 13));
