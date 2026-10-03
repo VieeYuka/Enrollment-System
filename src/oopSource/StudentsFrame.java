@@ -19,6 +19,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -388,6 +391,19 @@ public class StudentsFrame extends JFrame {
 	/**
 	 * Shows the next frame (same position as this one) and closes this frame.
 	 */
+	
+	private void loadManageStudentData(String searchQuery){
+		studentTableModel.setRowCount(0);
+		 String sql = "SELECT * FROM students WHERE student_id LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR course LIKE ? ORDER BY id DESC";
+	
+	
+		 try(Connection conn = DBConnection.getConnection();
+			 PreparedStatement pst = conn.prepareStatement(sql)){
+	
+		 }catch(SQLException e){
+		
+		 }
+	}
 	private void openFrame(JFrame next) {
 		next.setBounds(getBounds());
 		next.setVisible(true);
