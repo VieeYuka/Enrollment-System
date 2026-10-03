@@ -16,6 +16,10 @@ import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -28,6 +32,9 @@ import javax.swing.JTextField;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+
+import logReg.DBConnection;
+
 import javax.swing.DefaultComboBoxModel;
 
 public class EnrollFrame extends JFrame {
@@ -293,7 +300,36 @@ public class EnrollFrame extends JFrame {
 		pnlYearCourse.add(cmbYearLevel, gbc_cmbYearLevel);
 
 		cmbCourse = new JComboBox<String>();
-		cmbCourse.setModel(new DefaultComboBoxModel<String>(new String[] {"BSCS", "BSIT", "BSIS", "BSEd", "BSBA"}));
+		
+		
+		try {
+			Connection conn = DBConnection.getConnection();
+			
+			String sql ="Select course_code FROM courses";
+					
+			PreparedStatement pstate = conn.prepareStatement(sql);	
+			
+			ResultSet rs = pstate.executeQuery();
+			
+			while(rs.next()) {
+				cmbCourse.addItem(rs.getString("course_code"));
+			}
+			rs.close();
+			pstate.close();
+			conn.close();
+			
+		}catch(SQLException e) {
+			JOptionPane.showMessageDialog(
+    		        null,
+    		        "Error loading courses: " + e.getMessage(),
+    		        "Database Error",
+    		        JOptionPane.ERROR_MESSAGE);
+		}
+//		cmbCourse.setModel(new DefaultComboBoxModel<String>(new String[] {"BSCS", "BSIT", "BSIS", "BSEd", "BSBA"}));
+		
+		
+		
+		
 		cmbCourse.setFont(new Font("Arial", Font.PLAIN, 14));
 		cmbCourse.setBackground(Color.WHITE);
 		cmbCourse.setPreferredSize(new Dimension(150, 42));
@@ -393,9 +429,13 @@ public class EnrollFrame extends JFrame {
 		dispose();
 	}
 
-	/**
-	 * Validates the inputs and saves the student.
-	 */
+	private int generateID() {
+		return 0;
+	}
+	
+	private String generateUnivEmail() {
+		return "";
+	}
 	private void saveStudent() {
 		String firstName = txtFirstName.getText().trim();
 		String middleName = txtMiddleName.getText().trim();
@@ -421,6 +461,85 @@ public class EnrollFrame extends JFrame {
 
 		// TODO: insert firstName, middleName, lastName, email, address, gender, yearLevel, course into MySQL here.
 
+		
+        
+		String courseCode = (String) cmbCourse.getSelectedItem();
+
+		String getCourseName =
+		        "SELECT course_name FROM courses WHERE course_code = ?";
+
+		String courseName = "";
+
+		try (Connection conn = DBConnection.getConnection();
+		     PreparedStatement pst = conn.prepareStatement(getCourseName)) {
+
+		    pst.setString(1, courseCode);
+
+		    ResultSet rs = pst.executeQuery();
+
+		    if (rs.next()) {
+		        courseName = rs.getString("course_name");
+		    } else {
+		        JOptionPane.showMessageDialog(
+		            this,
+		            "Selected course does not exist.",
+		            "Invalid Course",
+		            JOptionPane.WARNING_MESSAGE
+		        );
+		        return;
+		    }
+
+		} catch (SQLException e) {
+		    JOptionPane.showMessageDialog(
+		        this,
+		        "Error getting course: " + e.getMessage(),
+		        "Database Error",
+		        JOptionPane.ERROR_MESSAGE
+		    );
+		    return;
+		}
+
+		String insertStudent =
+		        "INSERT INTO students "
+		      + "(student_number, first_name, last_name, personal_email, "
+		      + "univ_email, course, year_level) "
+		      + "VALUES (?, ?, ?, ?, ?, ?, ?) "
+		      + "ON DUPLICATE KEY UPDATE "
+		      + "student_number = student_number";
+
+		try (Connection conn = DBConnection.getConnection();
+		     PreparedStatement pstate = conn.prepareStatement(insertStudent)) {
+
+		    pstate.setString(1, "");
+		    pstate.setString(2, firstName);
+		    pstate.setString(3, lastName);
+		    pstate.setString(4, email);
+		    pstate.setString(5, lastName + "@university.edu");
+		    pstate.setString(6, courseName);
+		    pstate.setString(7, yearLevel);
+		    
+
+		    pstate.executeUpdate();
+
+		    JOptionPane.showMessageDialog(
+		        this,
+		        "Record added successfully!",
+		        "Success",
+		        JOptionPane.INFORMATION_MESSAGE
+		    );
+
+		} catch (SQLException e) {
+
+		    JOptionPane.showMessageDialog(
+		        this,
+		        "Error adding record: " + e.getMessage(),
+		        "Database Error",
+		        JOptionPane.ERROR_MESSAGE
+		    );
+		}
+		
+		
+		
 		JOptionPane.showMessageDialog(this, "Student saved:\n" + firstName + " " + middleName + " " + lastName
 				+ "\nEmail: " + email + "\nAddress: " + address + "\n" + gender + " | " + yearLevel + " - " + course, 
 				"Saved", JOptionPane.INFORMATION_MESSAGE);

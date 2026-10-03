@@ -21,6 +21,7 @@ import java.awt.event.MouseEvent;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +31,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -61,7 +63,7 @@ public class StudentsFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					StudentsFrame frame = new StudentsFrame("Students","student");
+					StudentsFrame frame = new StudentsFrame("Admin","admin");
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -75,7 +77,9 @@ public class StudentsFrame extends JFrame {
 	 * Default constructor
 	 */
 	public StudentsFrame() {
-		this("Students","Student");
+		this("Admin","admin");
+		
+		
 	}
 
 	/**
@@ -351,7 +355,7 @@ public class StudentsFrame extends JFrame {
 		lblTableTitle.setForeground(DARK_TEAL);
 		tableCardPanel.add(lblTableTitle, BorderLayout.NORTH);
 
-		String[] columns = {"Student ID", "Full Name", "Course / Program", "Year Level", "Enrollment Status", "Date Registered"};
+		String[] columns = {"Student ID", "First Name","Last Name","University Email", "Course", "Year Level", "Status"};
 		studentTableModel = new DefaultTableModel(columns, 0) {
 			private static final long serialVersionUID = 1L;
 
@@ -362,10 +366,10 @@ public class StudentsFrame extends JFrame {
 		};
 
 		// Placeholder data
-		studentTableModel.addRow(new Object[]{"2026-0001", "Juan Dela Cruz", "BS Computer Science", "1st Year", "Enrolled", "2026-09-01"});
-		studentTableModel.addRow(new Object[]{"2026-0002", "Maria Santos", "BS Information Technology", "Ayoko na", "Enrolled", "2026-09-02"});
-		studentTableModel.addRow(new Object[]{"2026-0003", "John Doe", "BS Business Administration", "2nd Year", "Pending", "2026-09-03"});
-		studentTableModel.addRow(new Object[]{"2026-0004", "Anne Smith", "BS Computer Engineering", "3rd Year", "Enrolled", "2026-09-04"});
+//		studentTableModel.addRow(new Object[]{"2026-0001", "Juan Dela Cruz", "BS Computer Science", "1st Year", "Enrolled", "2026-09-01"});
+//		studentTableModel.addRow(new Object[]{"2026-0002", "Maria Santos", "BS Information Technology", "Ayoko na", "Enrolled", "2026-09-02"});
+//		studentTableModel.addRow(new Object[]{"2026-0003", "John Doe", "BS Business Administration", "2nd Year", "Pending", "2026-09-03"});
+//		studentTableModel.addRow(new Object[]{"2026-0004", "Anne Smith", "BS Computer Engineering", "3rd Year", "Enrolled", "2026-09-04"});
 
 		JTable studentTable = new JTable(studentTableModel);
 		studentTable.setFont(new Font("Arial", Font.PLAIN, 13));
@@ -387,25 +391,61 @@ public class StudentsFrame extends JFrame {
 		scrollPane.setBorder(BorderFactory.createEmptyBorder());
 		scrollPane.getViewport().setBackground(Color.WHITE);
 		tableCardPanel.add(scrollPane, BorderLayout.CENTER);
+		
+		loadManageStudentData("");
 	}
 
 	/**
 	 * Shows the next frame (same position as this one) and closes this frame.
 	 */
 	
-	private void loadManageStudentData(String searchQuery){
-		studentTableModel.setRowCount(0);
-		 String sql = "SELECT * FROM students WHERE student_id LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR course LIKE ? ORDER BY id DESC";
-	
-	
-		 try(Connection conn = DBConnection.getConnection();
-			 PreparedStatement pst = conn.prepareStatement(sql)){
-	
-		 }catch(SQLException e){
-		
-		 }
-	}
-	private void openFrame(JFrame next) {
+	private void loadManageStudentData(String searchQuery) {
+
+	    studentTableModel.setRowCount(0);
+
+	    String sql = "SELECT * FROM students "
+	               + "WHERE status = 'Enrolled' "
+	               + "AND (student_number LIKE ? "
+	               + "OR first_name LIKE ? "
+	               + "OR last_name LIKE ? "
+	               + "OR course LIKE ?) "
+	               + "ORDER BY student_number DESC";
+
+	    try (Connection conn = DBConnection.getConnection();
+	         PreparedStatement pst = conn.prepareStatement(sql)) {
+
+	        String queryParam = "%" + searchQuery + "%";
+
+	        pst.setString(1, queryParam);
+	        pst.setString(2, queryParam);
+	        pst.setString(3, queryParam);
+	        pst.setString(4, queryParam);
+
+	        ResultSet rs = pst.executeQuery();
+
+	        while (rs.next()) {
+
+	            studentTableModel.addRow(new Object[]{
+	                rs.getString("student_number"),
+	                rs.getString("first_name"),
+	                rs.getString("last_name"),
+	                rs.getString("univ_email"),
+	                rs.getString("course"),
+	                rs.getString("year_level"),
+	                rs.getString("status")
+	            });
+	        }
+
+	    } catch (SQLException e) {
+
+	        e.printStackTrace();
+
+	        JOptionPane.showMessageDialog(
+	            this,
+	            "Error loading student data: " + e.getMessage()
+	        );
+	    }
+	}	private void openFrame(JFrame next) {
 		next.setBounds(getBounds());
 		next.setVisible(true);
 		dispose();
