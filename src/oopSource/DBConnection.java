@@ -16,7 +16,7 @@ public class DBConnection {
 
     private static final String USER = "root";
 
-    private static final String PASSWORD = "arvieSQL2006!"; // ur pass here
+    private static final String PASSWORD = "SQLang@246"; // ur pass here
 
 
     public static Connection getConnection() {
