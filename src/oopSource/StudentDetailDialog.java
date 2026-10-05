@@ -106,7 +106,7 @@ public class StudentDetailDialog extends JDialog {
 		txtFirstName = newTextField();
 		txtLastName = newTextField();
 		txtEmail = newTextField();
-		cmbCourse = newCombo(StudentService.COURSES);
+		cmbCourse = newCombo(StudentService.getCourseID());
 		cmbYearLevel = newCombo(StudentService.YEAR_LEVELS);
 		cmbStatus = newCombo(StudentService.STATUSES);
 

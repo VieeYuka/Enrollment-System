@@ -1,5 +1,9 @@
 package oopSource;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,11 +27,32 @@ import java.util.List;
 public final class StudentService {
 
 	/** Drop-down choices (replace with SELECT course_name FROM courses when ready). */
-	public static final String[] COURSES = {"BSCS", "BSIT", "BSIS", "BSEd", "BSBA"};
+	
 	public static final String[] YEAR_LEVELS = {"1st Year", "2nd Year", "3rd Year", "4th Year"};
 	public static final String[] STATUSES = {EnrollmentService.PENDING, EnrollmentService.ENROLLED};
 
 	/** One row of the students table. */
+	
+	
+	public static String[] getCourseID() {
+		
+		ArrayList<String> courses = new ArrayList<>();
+		
+		String sql = "SELECT course_code from courses ORDER BY course_name";
+		
+		try(Connection conn = DBConnection.getConnection();
+				PreparedStatement pst =  conn.prepareStatement(sql);
+				ResultSet rs = pst.executeQuery()){
+			
+			while(rs.next()) {
+				courses.add(rs.getString("course_code"));
+			}
+			
+		}catch(SQLException e) {
+			e.printStackTrace();
+		}
+		return courses.toArray(new String [0]);
+	}
 	public static class StudentRecord {
 		public String studentId;     // student_number
 		public String username;
@@ -59,14 +84,46 @@ public final class StudentService {
 		}
 	}
 
+	
+	private static final int generateStudNum() {
+		
+		return 0;
+	}
 	private static final List<StudentRecord> STUDENTS = new ArrayList<StudentRecord>();
 
 	static {
-		// Placeholder data - remove once MySQL is used
-		STUDENTS.add(new StudentRecord("2026-0001", "maria.santos", "Maria", "Santos",
-				"maria.santos@reyuniversity.edu", "BSIT", "1st Year", EnrollmentService.ENROLLED));
-		STUDENTS.add(new StudentRecord("2026-0002", "john.doe", "John", "Doe",
-				"john.doe@reyuniversity.edu", "BSBA", "2nd Year", EnrollmentService.PENDING));
+	    loadStudentsFromDatabase();
+	}
+
+	private static void loadStudentsFromDatabase() {
+
+	    String sql = "SELECT s.student_number, u.userName, "
+	               + "s.first_name, s.last_name, s.univ_email, "
+	               + "s.course, s.year_level, s.status "
+	               + "FROM students s "
+	               + "LEFT JOIN userCreds u ON s.student_id = u.student_id";
+
+	    try (Connection conn = DBConnection.getConnection();
+	         PreparedStatement pst = conn.prepareStatement(sql);
+	         ResultSet rs = pst.executeQuery()) {
+
+	        while (rs.next()) {
+
+	            STUDENTS.add(new StudentRecord(
+	                rs.getString("student_number"),
+	                rs.getString("userName"),
+	                rs.getString("first_name"),
+	                rs.getString("last_name"),
+	                rs.getString("univ_email"),
+	                rs.getString("course"),
+	                rs.getString("year_level"),
+	                rs.getString("status")
+	            ));
+	        }
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
 	}
 
 	private StudentService() {

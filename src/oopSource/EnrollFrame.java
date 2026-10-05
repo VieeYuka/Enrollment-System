@@ -306,7 +306,7 @@ public class EnrollFrame extends JFrame {
 		pnlYearCourse.add(cmbYearLevel, gbc_cmbYearLevel);
 
 		cmbCourse = new JComboBox<String>();
-		cmbCourse.setModel(new DefaultComboBoxModel<String>(StudentService.COURSES));
+		cmbCourse.setModel(new DefaultComboBoxModel<String>(StudentService.getCourseID()));
 		cmbCourse.setFont(new Font("Arial", Font.PLAIN, 14));
 		cmbCourse.setBackground(Color.WHITE);
 		cmbCourse.setPreferredSize(new Dimension(150, 42));

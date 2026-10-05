@@ -309,24 +309,35 @@ public class FinalFrameOOP extends JFrame {
      * @return {userName, role} when the login is correct, otherwise null
      */
     private String[] authenticate(String username, String password) throws SQLException {
-        String sql = "select userName, password, role from usercreds where userName = ?";
 
-        try (Connection conn = DBConnection.getConnection()) {
-            if (conn == null) {
-                throw new SQLException("No database connection.");
-            }
-            try (PreparedStatement pstate = conn.prepareStatement(sql)) {
-                pstate.setString(1, username);
-                try (ResultSet rs = pstate.executeQuery()) {
-                    if (rs.next()) {
-                        String storedHash = rs.getString("password");
-                        if (new SecurePass().passChecker(password, storedHash)) {
-                            return new String[] { rs.getString("userName"), rs.getString("role") };
-                        }
+        String sql = "SELECT userName, password, role FROM userCreds WHERE userName = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstate = conn.prepareStatement(sql)) {
+
+            pstate.setString(1, username);
+
+            try (ResultSet rs = pstate.executeQuery()) {
+
+                if (rs.next()) {
+
+                    String storedHash = rs.getString("password");
+                    String role = rs.getString("role");
+
+                    SecurePass securePass = new SecurePass();
+
+                    boolean valid = securePass.passChecker(password, storedHash);
+
+                    if (valid) {
+                        return new String[] {
+                            rs.getString("userName"),
+                            role
+                        };
                     }
                 }
             }
         }
+
         return null;
     }
 }
