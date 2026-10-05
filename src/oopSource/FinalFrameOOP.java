@@ -251,84 +251,82 @@ public class FinalFrameOOP extends JFrame {
         btnLogin.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String username = txtUsername.getText().trim();
-                String password = new String(txtPassword.getPassword());
-                String sql = "select userName, password, role from usercreds where userName = ?";
-                
-                if (username.isEmpty() || password.isEmpty()) {
-                    JOptionPane.showMessageDialog(FinalFrameOOP.this, 
-                            "Please enter both username and password.", 
-                            "Input Error", 
-                            JOptionPane.WARNING_MESSAGE);
-                } else {
-                	
-                	try(Connection conn = DBConnection.getConnection();
-                		PreparedStatement pstate = conn.prepareStatement(sql);){
-                		
-                		SecurePass sp = new SecurePass(); 
-                		
-                		
-                		
-                		
-                		
-                		pstate.setString(1, username);
-                		
-                		ResultSet rs = pstate.executeQuery();
-                		
-                		if(rs.next()) {
-                			String storedHash = rs.getString("password");
-                			String role = rs.getString("role");
-                			String usern = rs.getString("userName");
-                			
-                			boolean valid = sp.passChecker(password, storedHash);
-                			
-                			if(valid) {
-                				
-                				if(role.equalsIgnoreCase("admin")) {
-                					 DashboardFrame dashboard = new DashboardFrame(usern,"admin");
-                                     dashboard.setVisible(true);
-                                     dispose();
-                				}
-                				else if(role.equalsIgnoreCase("cashier")) {
-                					
-                					DashboardFrame dashboard = new DashboardFrame(usern,"cashier");
-                                    dashboard.setVisible(true);
-                                    dispose();
-                					JOptionPane.showMessageDialog(null,"cashier");
-                				}
-                				else if(role.equalsIgnoreCase("registrar")) {
-                					JOptionPane.showMessageDialog(null, "registrar");
-                				}
-                				
-                			}
-                			else {
-                				JOptionPane.showMessageDialog(null,"wrong");
-                			}
-                		}
-                		
-                		
-                	}catch(SQLException e1) {
-                		
-                	}
-                	
-                	
-                   
-                }
+                attemptLogin();
             }
         });
+        getRootPane().setDefaultButton(btnLogin); // Enter key = Login
 
         lblEnroll.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-            	
-            	
-            	
-            	
-            	
-                EnrollFrame enrollWindow = new EnrollFrame();
-                enrollWindow.setVisible(true);
-                dispose();
+                // No account: enrollment form -> courses -> summary -> exit
+                Sidebar.navigate(FinalFrameOOP.this, new EnrollFrame(null, true));
             }
         });
+    }
+
+    // =================================================================
+    // LOGIN
+    // =================================================================
+
+    /** Checks the fields, asks the database, then opens the screen that belongs to the user's role. */
+    private void attemptLogin() {
+        String username = txtUsername.getText().trim();
+        String password = new String(txtPassword.getPassword());
+
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter both username and password.",
+                    "Input Error", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            String[] account = authenticate(username, password); // {userName, role} or null
+            if (account == null) {
+                JOptionPane.showMessageDialog(this, "Invalid username or password.",
+                        "Login Failed", JOptionPane.ERROR_MESSAGE);
+                txtPassword.setText("");
+                return;
+            }
+
+            String user = account[0];
+            String role = account[1];
+            Session.login(user, role);
+            if (!Roles.normalize(role).equals(Roles.STUDENT)) {
+                ActivityLOg.log(ActivityLOg.Type.LOGIN, user + " (" + Roles.displayName(role) + ") logged in");
+            }
+            // admin/cashier -> Dashboard, registrar -> Students, student -> Courses
+            Sidebar.navigate(this, Roles.landingFrame(user, role));
+
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Could not log in: " + ex.getMessage(),
+                    "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Looks the user up in the usercreds table and checks the BCrypt password.
+     * @return {userName, role} when the login is correct, otherwise null
+     */
+    private String[] authenticate(String username, String password) throws SQLException {
+        String sql = "select userName, password, role from usercreds where userName = ?";
+
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) {
+                throw new SQLException("No database connection.");
+            }
+            try (PreparedStatement pstate = conn.prepareStatement(sql)) {
+                pstate.setString(1, username);
+                try (ResultSet rs = pstate.executeQuery()) {
+                    if (rs.next()) {
+                        String storedHash = rs.getString("password");
+                        if (new SecurePass().passChecker(password, storedHash)) {
+                            return new String[] { rs.getString("userName"), rs.getString("role") };
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 }

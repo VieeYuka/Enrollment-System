@@ -9,13 +9,8 @@ import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
@@ -23,7 +18,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -32,13 +26,10 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowFilter;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
@@ -52,9 +43,7 @@ public class TuitionFrame extends JFrame {
 	private DefaultTableModel tuitionTableModel;
 	private JTable tuitionTable;
 	private TableRowSorter<DefaultTableModel> sorter;
-	private JTextField txtSearch;
-
-	private static final String SEARCH_HINT = " Search student ID or name...";
+	private SearchField txtSearch;
 
 	// Theme colors (package-private so PaymentFrame can reuse them)
 	static final Color DARK_TEAL = new Color(11, 55, 49);
@@ -147,7 +136,8 @@ public class TuitionFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					TuitionFrame frame = new TuitionFrame("Cashier01", "cashier");
+					Session.login("Cashier01", Roles.CASHIER);
+					TuitionFrame frame = new TuitionFrame("Cashier01", Roles.CASHIER);
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -161,7 +151,7 @@ public class TuitionFrame extends JFrame {
 	 * Default constructor
 	 */
 	public TuitionFrame() {
-		this("Cashier01", "Cashier");
+		this(Session.username(), Session.role());
 	}
 
 	/**
@@ -244,31 +234,11 @@ public class TuitionFrame extends JFrame {
 		lblHeader.setForeground(DARK_TEAL);
 		headerToolBar.add(lblHeader, BorderLayout.WEST);
 
-		txtSearch = new JTextField(SEARCH_HINT);
-		txtSearch.setFont(new Font("Arial", Font.PLAIN, 13));
-		txtSearch.setPreferredSize(new Dimension(260, 38));
-		txtSearch.setForeground(Color.GRAY);
-		txtSearch.addFocusListener(new FocusAdapter() {
-			@Override
-			public void focusGained(FocusEvent e) {
-				if (txtSearch.getText().equals(SEARCH_HINT)) {
-					txtSearch.setText("");
-					txtSearch.setForeground(Color.BLACK);
-				}
+		// Live search by student ID or name (any word order)
+		txtSearch = new SearchField("Search student ID or name...", 260, new Runnable() {
+			public void run() {
+				applySearch();
 			}
-
-			@Override
-			public void focusLost(FocusEvent e) {
-				if (txtSearch.getText().trim().isEmpty()) {
-					txtSearch.setText(SEARCH_HINT);
-					txtSearch.setForeground(Color.GRAY);
-				}
-			}
-		});
-		txtSearch.getDocument().addDocumentListener(new DocumentListener() {
-			public void insertUpdate(DocumentEvent e) { applySearch(); }
-			public void removeUpdate(DocumentEvent e) { applySearch(); }
-			public void changedUpdate(DocumentEvent e) { applySearch(); }
 		});
 		headerToolBar.add(txtSearch, BorderLayout.EAST);
 
@@ -368,13 +338,18 @@ public class TuitionFrame extends JFrame {
 	}
 
 	private void applySearch() {
-		String text = txtSearch.getText().trim();
-		if (text.isEmpty() || text.equals(SEARCH_HINT.trim())) {
+		final String query = txtSearch.getQuery();
+		if (query.isEmpty()) {
 			sorter.setRowFilter(null);
-		} else {
-			sorter.setRowFilter(RowFilter.<DefaultTableModel, Integer>regexFilter(
-					"(?i)" + Pattern.quote(text), 0, 1));
+			return;
 		}
+		sorter.setRowFilter(new RowFilter<DefaultTableModel, Integer>() {
+			@Override
+			public boolean include(Entry<? extends DefaultTableModel, ? extends Integer> entry) {
+				// column 0 = Student ID, column 1 = Full Name
+				return SearchField.matches(query, String.valueOf(entry.getValue(0)), String.valueOf(entry.getValue(1)));
+			}
+		});
 	}
 
 	/** Colors the Paid / Unpaid text. */
@@ -400,157 +375,11 @@ public class TuitionFrame extends JFrame {
 
 	/** Shows the next frame (same position as the current one) and closes the current one. */
 	static void navigate(JFrame from, JFrame next) {
-		next.setBounds(from.getBounds());
-		next.setVisible(true);
-		from.dispose();
+		Sidebar.navigate(from, next);
 	}
 
-	/** Builds the dark teal sidebar with "Tuition & Payments" highlighted. */
+	/** The shared sidebar with "Tuition & Payments" highlighted (PaymentFrame uses it too). */
 	static JPanel buildSidebar(final JFrame owner, final String user, final String role) {
-		JPanel sidebarPanel = new JPanel();
-		sidebarPanel.setBackground(DARK_TEAL);
-		sidebarPanel.setPreferredSize(new Dimension(280, 720));
-		sidebarPanel.setLayout(new BorderLayout(0, 0));
-
-		// ---- Logo + Title ----
-		JPanel logoPanel = new JPanel();
-		logoPanel.setOpaque(false);
-		logoPanel.setBorder(new EmptyBorder(20, 15, 20, 15));
-		logoPanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(logoPanel, BorderLayout.NORTH);
-
-		JLabel lblLogo = new JLabel("");
-		lblLogo.setHorizontalAlignment(SwingConstants.CENTER);
-		URL imgUrl = TuitionFrame.class.getResource("/RUlogo (1).png");
-		if (imgUrl != null) {
-			Image img = new ImageIcon(imgUrl).getImage().getScaledInstance(45, 45, Image.SCALE_SMOOTH);
-			lblLogo.setIcon(new ImageIcon(img));
-		} else {
-			lblLogo.setText("LOGO");
-			lblLogo.setFont(new Font("Arial", Font.BOLD, 10));
-			lblLogo.setForeground(DARK_TEAL);
-			lblLogo.setOpaque(true);
-			lblLogo.setBackground(Color.WHITE);
-			lblLogo.setPreferredSize(new Dimension(45, 45));
-		}
-		GridBagConstraints gbc_lblLogo = new GridBagConstraints();
-		gbc_lblLogo.insets = new Insets(0, 5, 0, 10);
-		gbc_lblLogo.gridx = 0;
-		gbc_lblLogo.gridy = 0;
-		logoPanel.add(lblLogo, gbc_lblLogo);
-
-		JLabel lblTitle = new JLabel("REY UNIVERSITY");
-		lblTitle.setForeground(Color.WHITE);
-		lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
-		GridBagConstraints gbc_lblTitle = new GridBagConstraints();
-		gbc_lblTitle.insets = new Insets(0, 5, 0, 10);
-		gbc_lblTitle.weightx = 1.0;
-		gbc_lblTitle.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblTitle.gridx = 1;
-		gbc_lblTitle.gridy = 0;
-		logoPanel.add(lblTitle, gbc_lblTitle);
-
-		// ---- Navigation ----
-		JPanel navContainer = new JPanel();
-		navContainer.setOpaque(false);
-		navContainer.setLayout(new GridLayout(8, 1, 0, 10));
-		navContainer.setBorder(new EmptyBorder(10, 15, 10, 15));
-		sidebarPanel.add(navContainer, BorderLayout.CENTER);
-
-		StudentsFrame.NavItem navDashboard = new StudentsFrame.NavItem("Dashboard", false);
-		navDashboard.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				navigate(owner, new DashboardFrame(user, role ));
-			}
-		});
-		navContainer.add(navDashboard);
-
-		StudentsFrame.NavItem navStudents = new StudentsFrame.NavItem("Students", false);
-		navStudents.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				navigate(owner, new StudentsFrame(user, role));
-			}
-		});
-		navContainer.add(navStudents);
-
-		StudentsFrame.NavItem navEnrollment = new StudentsFrame.NavItem("Enrollment", false);
-		navEnrollment.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				navigate(owner, new EnrollmentStudent(user));
-			}
-		});
-		navContainer.add(navEnrollment);
-
-		StudentsFrame.NavItem navCourses = new StudentsFrame.NavItem("Courses & Schedules", false);
-		navCourses.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				navigate(owner, new CoursesFrame(user, role));
-			}
-		});
-		navContainer.add(navCourses);
-
-		// Tuition & Payments (current section)
-		StudentsFrame.NavItem navTuition = new StudentsFrame.NavItem("Tuition & Payments", true);
-		navTuition.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				// From the payment screen this returns to the tuition list
-				if (!(owner instanceof TuitionFrame)) {
-					navigate(owner, new TuitionFrame(user, role));
-				}
-			}
-		});
-		navContainer.add(navTuition);
-
-		// ---- Bottom User Profile ----
-		JPanel userProfilePanel = new JPanel();
-		userProfilePanel.setOpaque(false);
-		userProfilePanel.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(255, 255, 255, 40)),
-				new EmptyBorder(15, 15, 15, 15)));
-		userProfilePanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(userProfilePanel, BorderLayout.SOUTH);
-
-		JLabel lblPfp = new JLabel("", SwingConstants.CENTER);
-		lblPfp.setPreferredSize(new Dimension(40, 40));
-		URL pfpUrl = TuitionFrame.class.getResource("/Profile1.png");
-		if (pfpUrl != null) {
-			Image pfpImg = new ImageIcon(pfpUrl).getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-			lblPfp.setIcon(new ImageIcon(pfpImg));
-		} else {
-			lblPfp.setText("PFP");
-			lblPfp.setOpaque(true);
-			lblPfp.setBackground(Color.WHITE);
-			lblPfp.setForeground(DARK_TEAL);
-			lblPfp.setFont(new Font("Arial", Font.BOLD, 10));
-		}
-		GridBagConstraints gbc_lblPfp = new GridBagConstraints();
-		gbc_lblPfp.gridheight = 2;
-		gbc_lblPfp.insets = new Insets(0, 0, 0, 12);
-		gbc_lblPfp.gridx = 0;
-		gbc_lblPfp.gridy = 0;
-		userProfilePanel.add(lblPfp, gbc_lblPfp);
-
-		JLabel lblUsername = new JLabel(user);
-		lblUsername.setForeground(Color.WHITE);
-		lblUsername.setFont(new Font("Arial", Font.BOLD, 15));
-		GridBagConstraints gbc_lblUsername = new GridBagConstraints();
-		gbc_lblUsername.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblUsername.weightx = 1.0;
-		gbc_lblUsername.insets = new Insets(0, 0, 2, 0);
-		gbc_lblUsername.gridx = 1;
-		gbc_lblUsername.gridy = 0;
-		userProfilePanel.add(lblUsername, gbc_lblUsername);
-
-		JLabel lblRole = new JLabel(role);
-		lblRole.setForeground(new Color(180, 200, 195));
-		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
-		GridBagConstraints gbc_lblRole = new GridBagConstraints();
-		gbc_lblRole.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblRole.weightx = 1.0;
-		gbc_lblRole.gridx = 1;
-		gbc_lblRole.gridy = 1;
-		userProfilePanel.add(lblRole, gbc_lblRole);
-
-		return sidebarPanel;
+		return Sidebar.build(owner, user, role, Roles.NAV_TUITION);
 	}
 }

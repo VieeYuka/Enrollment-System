@@ -397,12 +397,17 @@ public class PaymentFrame extends JFrame {
 			return;
 		}
 
-		// Mark as paid (TODO: also save to MySQL here)
+		// Mark as paid (TODO: save the payment to MySQL here)
 		record.paid = true;
 		record.paymentMethod = String.valueOf(cmbMethod.getSelectedItem());
 		record.amountReceived = amount;
 		record.change = amount - due;
 		record.datePaid = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+
+		// Recent-activity feed + enrollment status: Pending -> Enrolled once tuition is paid
+		ActivityLOg.log(ActivityLOg.Type.PAYMENT,
+				record.name + " paid " + PESO + TuitionFrame.MONEY.format(due) + " (" + record.paymentMethod + ")");
+		EnrollmentService.setStatus(record.studentId, EnrollmentService.ENROLLED);
 
 		JOptionPane.showMessageDialog(this,
 				"Payment confirmed for " + record.name + ".\nChange: " + PESO

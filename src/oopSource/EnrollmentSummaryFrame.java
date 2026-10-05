@@ -43,6 +43,7 @@ public class EnrollmentSummaryFrame extends JFrame {
 	public EnrollmentSummaryFrame(String username, List<Object[]> rows, CoursesFrame parent, String role) {
 		this.loggedInUser = username;
 		this.parent = parent;
+		this.loggedInRole = role;
 
 		setTitle("Rey University - Enrollment Summary");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -61,12 +62,25 @@ public class EnrollmentSummaryFrame extends JFrame {
 		topBar.setBorder(new EmptyBorder(0, 30, 0, 30));
 		contentPane.add(topBar, BorderLayout.NORTH);
 
+		// Logo on the left, then the university name
+		JPanel brand = new JPanel(new GridBagLayout());
+		brand.setOpaque(false);
+		GridBagConstraints gbc_logo = new GridBagConstraints();
+		gbc_logo.gridx = 0;
+		gbc_logo.gridy = 0;
+		gbc_logo.insets = new Insets(0, 0, 0, 12);
+		brand.add(Sidebar.createLogo(45), gbc_logo);
+
 		JLabel lblUni = new JLabel("REY UNIVERSITY");
 		lblUni.setForeground(Color.WHITE);
 		lblUni.setFont(new Font("Arial", Font.BOLD, 18));
-		topBar.add(lblUni, BorderLayout.WEST);
+		GridBagConstraints gbc_uni = new GridBagConstraints();
+		gbc_uni.gridx = 1;
+		gbc_uni.gridy = 0;
+		brand.add(lblUni, gbc_uni);
+		topBar.add(brand, BorderLayout.WEST);
 
-		JLabel lblUser = new JLabel(loggedInUser + " (System Administrator)");
+		JLabel lblUser = new JLabel(loggedInUser + " (" + Roles.displayName(loggedInRole) + ")");
 		lblUser.setForeground(new Color(180, 200, 195));
 		lblUser.setFont(new Font("Arial", Font.PLAIN, 13));
 		topBar.add(lblUser, BorderLayout.EAST);
@@ -174,19 +188,34 @@ public class EnrollmentSummaryFrame extends JFrame {
 		btnConfirm.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 		btnConfirm.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				// TODO: save the enrollment to MySQL here
-				JOptionPane.showMessageDialog(EnrollmentSummaryFrame.this,
-						"Enrollment submitted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-				StudentsFrame next = new StudentsFrame(loggedInUser, loggedInRole);
-				next.setBounds(getBounds());
-				next.setVisible(true);
-				EnrollmentSummaryFrame.this.parent.dispose();
-				dispose();
+				confirmEnrollment(rows);
 			}
 		});
 		GridBagConstraints gbc_confirm = new GridBagConstraints();
 		gbc_confirm.gridx = 2;
 		gbc_confirm.gridy = 0;
 		bottom.add(btnConfirm, gbc_confirm);
+	}
+
+	/**
+	 * Saves the enrollment as "Pending" (EnrollmentService does the database work),
+	 * then moves on: students / applicants go to the Exit screen and the system closes,
+	 * staff go back to their own home screen.
+	 */
+	private void confirmEnrollment(List<Object[]> rows) {
+		EnrollmentService.submit(Session.studentKey(), Session.fullName(), Session.course(), Session.yearLevel(), rows);
+
+		JFrame next;
+		if (Roles.endsSessionAfterEnrollment(loggedInRole)) {
+			next = new ExitFrame(Session.studentKey());
+		} else {
+			JOptionPane.showMessageDialog(this, "Enrollment submitted successfully!", "Success",
+					JOptionPane.INFORMATION_MESSAGE);
+			next = Roles.landingFrame(loggedInUser, loggedInRole);
+		}
+		next.setBounds(getBounds());
+		next.setVisible(true);
+		parent.dispose();
+		dispose();
 	}
 }

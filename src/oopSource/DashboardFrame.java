@@ -2,46 +2,52 @@ package oopSource;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Insets;
-import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
+import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 
+/**
+ * Admin / cashier home screen.
+ *  - four number cards  -> values come from DashboardService (database)
+ *  - "Recent Activity"  -> entries come from ActivityLog (enrollments, payments, student changes...)
+ * Both refresh automatically every few seconds.
+ */
 public class DashboardFrame extends JFrame {
 
 	private static final long serialVersionUID = 1L;
-	private JPanel contentPane;
-	private String loggedInUser;
-	private String loggedInRole;
+	private static final int REFRESH_MS = 10000;
+	private static final int ACTIVITY_LIMIT = 20;
 
-	// Dark Teal Theme Colors
-	private static final Color DARK_TEAL = new Color(11, 55, 49);
-	private static final Color HOVER_TEAL = new Color(20, 80, 72);
-	private static final Color ACTIVE_NAV = new Color(40, 95, 87);
 	private static final Color LIGHT_BG = new Color(235, 235, 235);
+	private static final Color DARK_TEAL = new Color(11, 55, 49);
+
+	private final String loggedInUser;
+	private final String loggedInRole;
+
+	private StatCard cardEnrolledToday;
+	private StatCard cardTotalStudents;
+	private StatCard cardPending;
+	private StatCard cardApproved;
+	private JPanel activityList;
+	private final Timer refreshTimer;
 
 	/**
 	 * Launch the application.
@@ -50,7 +56,7 @@ public class DashboardFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					DashboardFrame frame = new DashboardFrame("Admin", "role");
+					DashboardFrame frame = new DashboardFrame("Admin", Roles.ADMIN);
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -65,188 +71,50 @@ public class DashboardFrame extends JFrame {
 	 */
 	public DashboardFrame(String username, String role) {
 		this.loggedInUser = username;
-		
 		this.loggedInRole = role;
+
 		setTitle("Rey University - System Dashboard");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
-        contentPane = new JPanel();
+
+		JPanel contentPane = new JPanel(new BorderLayout(0, 0));
 		contentPane.setBorder(new EmptyBorder(0, 0, 0, 0));
 		setContentPane(contentPane);
-		contentPane.setLayout(new BorderLayout(0, 0));
 
-		// =============================================================
-		// LEFT SIDEBAR
-		// =============================================================
-		JPanel sidebarPanel = new JPanel();
-		sidebarPanel.setBackground(DARK_TEAL);
-		sidebarPanel.setPreferredSize(new Dimension(280, 720));
-		sidebarPanel.setLayout(new BorderLayout(0, 0));
-		contentPane.add(sidebarPanel, BorderLayout.WEST);
+		// Sidebar: shows ONLY the buttons this role is allowed to see (see Roles.java)
+		contentPane.add(Sidebar.build(this, loggedInUser, loggedInRole, Roles.NAV_DASHBOARD), BorderLayout.WEST);
 
-		// ---- Logo + Title ----
-		JPanel logoPanel = new JPanel();
-		logoPanel.setOpaque(false);
-		logoPanel.setBorder(new EmptyBorder(20, 15, 20, 15));
-		GridBagLayout gbl_logoPanel = new GridBagLayout();
-		logoPanel.setLayout(gbl_logoPanel);
-		sidebarPanel.add(logoPanel, BorderLayout.NORTH);
-
-		JLabel lblLogo = new JLabel("");
-		lblLogo.setHorizontalAlignment(SwingConstants.CENTER);
-		URL imgUrl = DashboardFrame.class.getResource("/RUlogo (1).png");
-		if (imgUrl != null) {
-			Image img = new ImageIcon(imgUrl).getImage().getScaledInstance(45, 45, Image.SCALE_SMOOTH);
-			lblLogo.setIcon(new ImageIcon(img));
-		} else {
-			lblLogo.setText("LOGO");
-			lblLogo.setFont(new Font("Arial", Font.BOLD, 10));
-			lblLogo.setForeground(DARK_TEAL);
-			lblLogo.setOpaque(true);
-			lblLogo.setBackground(Color.WHITE);
-			lblLogo.setPreferredSize(new Dimension(45, 45));
-		}
-		GridBagConstraints gbc_lblLogo = new GridBagConstraints();
-		gbc_lblLogo.insets = new Insets(0, 5, 0, 10);
-		gbc_lblLogo.gridx = 0;
-		gbc_lblLogo.gridy = 0;
-		logoPanel.add(lblLogo, gbc_lblLogo);
-
-		JLabel lblTitle = new JLabel("REY UNIVERSITY");
-		lblTitle.setForeground(Color.WHITE);
-		lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
-		GridBagConstraints gbc_lblTitle = new GridBagConstraints();
-		gbc_lblTitle.insets = new Insets(0, 5, 0, 10);
-		gbc_lblTitle.weightx = 1.0;
-		gbc_lblTitle.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblTitle.gridx = 1;
-		gbc_lblTitle.gridy = 0;
-		logoPanel.add(lblTitle, gbc_lblTitle);
-
-		// ---- Navigation ----
-		JPanel navContainer = new JPanel();
-		navContainer.setOpaque(false);
-		navContainer.setLayout(new GridLayout(8, 1, 0, 10));
-		navContainer.setBorder(new EmptyBorder(10, 15, 10, 15));
-		sidebarPanel.add(navContainer, BorderLayout.CENTER);
-
-		// Dashboard (current page - already active, so no action needed)
-		NavItem navDashboard = new NavItem("Dashboard", true);
-		navContainer.add(navDashboard);
-
-		// Students
-		NavItem navStudents = new NavItem("Students", false);
-		navStudents.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(username,role));
-			}
-		});
-		navContainer.add(navStudents);
-
-		// Enrollment
-		NavItem navEnrollment = new NavItem("Enrollment", false);
-		navEnrollment.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new EnrollmentStudent());
-			}
-		});
-		navContainer.add(navEnrollment);
-
-		// Courses & Schedules
-		NavItem navCourses = new NavItem("Courses & Schedules", false);
-		navCourses.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new CoursesFrame());
-			}
-		});
-		navContainer.add(navCourses);
-
-		// Tuition & Payments
-		NavItem navTuition = new NavItem("Tuition & Payments", false);
-		navTuition.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new TuitionFrame());
-			}
-		});
-		navContainer.add(navTuition);
-
-		// ---- Bottom User Profile ----
-		JPanel userProfilePanel = new JPanel();
-		userProfilePanel.setOpaque(false);
-		userProfilePanel.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(255, 255, 255, 40)),
-				new EmptyBorder(15, 15, 15, 15)));
-		userProfilePanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(userProfilePanel, BorderLayout.SOUTH);
-
-		JLabel lblPfp = new JLabel("", SwingConstants.CENTER);
-		lblPfp.setPreferredSize(new Dimension(40, 40));
-		lblPfp.setHorizontalAlignment(SwingConstants.CENTER);
-
-		URL pfpUrl = this.getClass().getResource("/Profile1.png");
-		if (pfpUrl != null) {
-			Image pfpImg = new ImageIcon(pfpUrl).getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-			lblPfp.setIcon(new ImageIcon(pfpImg));
-		} else {
-			lblPfp.setText("PFP");
-			lblPfp.setOpaque(true);
-			lblPfp.setBackground(Color.WHITE);
-			lblPfp.setForeground(DARK_TEAL);
-			lblPfp.setFont(new Font("Arial", Font.BOLD, 10));
-		}
-
-		GridBagConstraints gbc_lblPfp = new GridBagConstraints();
-		gbc_lblPfp.gridheight = 2;
-		gbc_lblPfp.insets = new Insets(0, 0, 0, 12);
-		gbc_lblPfp.gridx = 0;
-		gbc_lblPfp.gridy = 0;
-		userProfilePanel.add(lblPfp, gbc_lblPfp);
-
-		JLabel lblUsername = new JLabel(this.loggedInUser);
-		lblUsername.setForeground(Color.WHITE);
-		lblUsername.setFont(new Font("Arial", Font.BOLD, 15));
-		GridBagConstraints gbc_lblUsername = new GridBagConstraints();
-		gbc_lblUsername.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblUsername.weightx = 1.0;
-		gbc_lblUsername.insets = new Insets(0, 0, 2, 0);
-		gbc_lblUsername.gridx = 1;
-		gbc_lblUsername.gridy = 0;
-		userProfilePanel.add(lblUsername, gbc_lblUsername);
-
-		JLabel lblRole = new JLabel("loggedInRole");
-		lblRole.setForeground(new Color(180, 200, 195));
-		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
-		GridBagConstraints gbc_lblRole = new GridBagConstraints();
-		gbc_lblRole.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblRole.weightx = 1.0;
-		gbc_lblRole.gridx = 1;
-		gbc_lblRole.gridy = 1;
-		userProfilePanel.add(lblRole, gbc_lblRole);
-
-		// =============================================================
-		// RIGHT MAIN CONTENT AREA
-		// =============================================================
-		JPanel mainContentPanel = new JPanel();
+		JPanel mainContentPanel = new JPanel(new BorderLayout(0, 0));
 		mainContentPanel.setBackground(LIGHT_BG);
-		mainContentPanel.setLayout(new BorderLayout(0, 0));
 		contentPane.add(mainContentPanel, BorderLayout.CENTER);
 
-		// ---- Top Welcome Bar ----
-		JPanel topBar = new JPanel();
+		mainContentPanel.add(buildTopBar(), BorderLayout.NORTH);
+		mainContentPanel.add(buildBody(), BorderLayout.CENTER);
+
+		refreshDashboard();
+		refreshTimer = new Timer(REFRESH_MS, new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				refreshDashboard();
+			}
+		});
+		refreshTimer.start();
+	}
+
+	// =================================================================
+	// LAYOUT
+	// =================================================================
+	private JPanel buildTopBar() {
+		JPanel topBar = new JPanel(new GridBagLayout());
 		topBar.setBackground(Color.WHITE);
 		topBar.setPreferredSize(new Dimension(0, 70));
 		topBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(220, 220, 220)));
-		topBar.setLayout(new GridBagLayout());
-		mainContentPanel.add(topBar, BorderLayout.NORTH);
 
 		JLabel lblTopPfp = new JLabel("", SwingConstants.CENTER);
 		lblTopPfp.setPreferredSize(new Dimension(38, 38));
-		lblTopPfp.setHorizontalAlignment(SwingConstants.CENTER);
-
-		URL pfpUrl2 = this.getClass().getResource("/Profile2.png");
-		if (pfpUrl2 != null) {
-			Image topPfpImg = new ImageIcon(pfpUrl2).getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-			lblTopPfp.setIcon(new ImageIcon(topPfpImg));
+		URL pfpUrl = this.getClass().getResource("/Profile2.png");
+		if (pfpUrl != null) {
+			Image img = new ImageIcon(pfpUrl).getImage().getScaledInstance(38, 38, Image.SCALE_SMOOTH);
+			lblTopPfp.setIcon(new ImageIcon(img));
 		} else {
 			lblTopPfp.setText("PFP");
 			lblTopPfp.setOpaque(true);
@@ -254,136 +122,189 @@ public class DashboardFrame extends JFrame {
 			lblTopPfp.setForeground(Color.WHITE);
 			lblTopPfp.setFont(new Font("Arial", Font.BOLD, 10));
 		}
+		GridBagConstraints gbcPfp = new GridBagConstraints();
+		gbcPfp.insets = new Insets(0, 25, 0, 12);
+		gbcPfp.gridx = 0;
+		gbcPfp.gridy = 0;
+		topBar.add(lblTopPfp, gbcPfp);
 
-		GridBagConstraints gbc_lblTopPfp = new GridBagConstraints();
-		gbc_lblTopPfp.insets = new Insets(0, 25, 0, 12);
-		gbc_lblTopPfp.gridx = 0;
-		gbc_lblTopPfp.gridy = 0;
-		topBar.add(lblTopPfp, gbc_lblTopPfp);
-
-		JLabel lblWelcomeMsg = new JLabel("Welcome, " + this.loggedInUser);
+		JLabel lblWelcomeMsg = new JLabel("Welcome, " + loggedInUser);
 		lblWelcomeMsg.setFont(new Font("Arial", Font.BOLD, 20));
-		GridBagConstraints gbc_lblWelcomeMsg = new GridBagConstraints();
-		gbc_lblWelcomeMsg.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblWelcomeMsg.weightx = 1.0;
-		gbc_lblWelcomeMsg.gridx = 1;
-		gbc_lblWelcomeMsg.gridy = 0;
-		topBar.add(lblWelcomeMsg, gbc_lblWelcomeMsg);
-
-		// ---- Dashboard Body ----
-		JPanel dashboardBody = new JPanel();
-		dashboardBody.setOpaque(false);
-		dashboardBody.setBorder(new EmptyBorder(25, 25, 25, 25));
-		GridBagLayout gbl_dashboardBody = new GridBagLayout();
-		gbl_dashboardBody.columnWidths = new int[]{0, 0, 0, -102};
-		dashboardBody.setLayout(gbl_dashboardBody);
-		mainContentPanel.add(dashboardBody, BorderLayout.CENTER);
-
-		JLabel lblDashboardHeader = new JLabel("Dashboard");
-		lblDashboardHeader.setFont(new Font("Arial", Font.BOLD, 26));
-		GridBagConstraints gbc_lblDashboardHeader = new GridBagConstraints();
-		gbc_lblDashboardHeader.anchor = GridBagConstraints.WEST;
-		gbc_lblDashboardHeader.gridwidth = 4;
-		gbc_lblDashboardHeader.insets = new Insets(0, 0, 20, 0);
-		gbc_lblDashboardHeader.gridx = 0;
-		gbc_lblDashboardHeader.gridy = 0;
-		dashboardBody.add(lblDashboardHeader, gbc_lblDashboardHeader);
-
-		// ---- Stat Cards ----
-		StatCard cardEnrolled = new StatCard("Total Enrolled Students\nToday", "100", new Color(38, 128, 98));
-		GridBagConstraints gbc_cardEnrolled = new GridBagConstraints();
-		gbc_cardEnrolled.fill = GridBagConstraints.BOTH;
-		gbc_cardEnrolled.weightx = 1.0;
-		gbc_cardEnrolled.insets = new Insets(0, 0, 20, 10);
-		gbc_cardEnrolled.gridx = 0;
-		gbc_cardEnrolled.gridy = 1;
-		dashboardBody.add(cardEnrolled, gbc_cardEnrolled);
-
-		StatCard cardTotal = new StatCard("Total Students\n(Overall)", "100", new Color(60, 115, 190));
-		GridBagConstraints gbc_cardTotal = new GridBagConstraints();
-		gbc_cardTotal.fill = GridBagConstraints.BOTH;
-		gbc_cardTotal.weightx = 1.0;
-		gbc_cardTotal.insets = new Insets(0, 5, 20, 10);
-		gbc_cardTotal.gridx = 1;
-		gbc_cardTotal.gridy = 1;
-		dashboardBody.add(cardTotal, gbc_cardTotal);
-
-		StatCard cardFeature3 = new StatCard("Pending Requests\nTotal", "100", new Color(240, 178, 75));
-		GridBagConstraints gbc_cardFeature3 = new GridBagConstraints();
-		gbc_cardFeature3.fill = GridBagConstraints.BOTH;
-		gbc_cardFeature3.weightx = 1.0;
-		gbc_cardFeature3.insets = new Insets(0, 5, 20, 10);
-		gbc_cardFeature3.gridx = 2;
-		gbc_cardFeature3.gridy = 1;
-		dashboardBody.add(cardFeature3, gbc_cardFeature3);
-
-		StatCard cardFeature4 = new StatCard("Approved Requests\nToday", "100", new Color(215, 78, 85));
-		GridBagConstraints gbc_cardFeature4 = new GridBagConstraints();
-		gbc_cardFeature4.fill = GridBagConstraints.BOTH;
-		gbc_cardFeature4.weightx = 1.0;
-		gbc_cardFeature4.insets = new Insets(0, 5, 20, 0);
-		gbc_cardFeature4.gridx = 3;
-		gbc_cardFeature4.gridy = 1;
-		dashboardBody.add(cardFeature4, gbc_cardFeature4);
-
-		// ---- Lower Section ----
-		RoundedPanel leftBox = new RoundedPanel(Color.WHITE, 20);
-		GridBagConstraints gbc_leftBox = new GridBagConstraints();
-		gbc_leftBox.fill = GridBagConstraints.BOTH;
-		gbc_leftBox.gridwidth = 4;
-		gbc_leftBox.weightx = 2.5;
-		gbc_leftBox.weighty = 1.0;
-		gbc_leftBox.insets = new Insets(0, 0, 0, 15);
-		gbc_leftBox.gridx = 0;
-		gbc_leftBox.gridy = 2;
-		dashboardBody.add(leftBox, gbc_leftBox);
+		GridBagConstraints gbcWelcome = new GridBagConstraints();
+		gbcWelcome.fill = GridBagConstraints.HORIZONTAL;
+		gbcWelcome.weightx = 1.0;
+		gbcWelcome.gridx = 1;
+		gbcWelcome.gridy = 0;
+		topBar.add(lblWelcomeMsg, gbcWelcome);
+		return topBar;
 	}
 
-	/**
-	 * Shows the next frame (same position as this one) and closes the dashboard.
-	 */
-	private void openFrame(JFrame next) {
-		next.setBounds(getBounds());
-		next.setVisible(true);
-		dispose();
+	private JPanel buildBody() {
+		JPanel body = new JPanel(new GridBagLayout());
+		body.setOpaque(false);
+		body.setBorder(new EmptyBorder(25, 25, 25, 25));
+
+		JLabel lblHeader = new JLabel("Dashboard");
+		lblHeader.setFont(new Font("Arial", Font.BOLD, 26));
+		GridBagConstraints gbcHeader = new GridBagConstraints();
+		gbcHeader.anchor = GridBagConstraints.WEST;
+		gbcHeader.gridwidth = 4;
+		gbcHeader.insets = new Insets(0, 0, 20, 0);
+		gbcHeader.gridx = 0;
+		gbcHeader.gridy = 0;
+		body.add(lblHeader, gbcHeader);
+
+		// ---- Stat cards (values are filled in by refreshDashboard) ----
+		cardEnrolledToday = new StatCard("Total Enrolled Students\nToday", new Color(38, 128, 98));
+		cardTotalStudents = new StatCard("Total Students\n(Overall)", new Color(60, 115, 190));
+		cardPending = new StatCard("Pending Requests\nTotal", new Color(240, 178, 75));
+		cardApproved = new StatCard("Approved Requests\nToday", new Color(215, 78, 85));
+		StatCard[] cards = {cardEnrolledToday, cardTotalStudents, cardPending, cardApproved};
+		for (int i = 0; i < cards.length; i++) {
+			GridBagConstraints gbc = new GridBagConstraints();
+			gbc.fill = GridBagConstraints.BOTH;
+			gbc.weightx = 1.0;
+			gbc.insets = new Insets(0, i == 0 ? 0 : 5, 20, i == cards.length - 1 ? 0 : 10);
+			gbc.gridx = i;
+			gbc.gridy = 1;
+			body.add(cards[i], gbc);
+		}
+
+		// ---- Recent activity box ----
+		GridBagConstraints gbcActivity = new GridBagConstraints();
+		gbcActivity.fill = GridBagConstraints.BOTH;
+		gbcActivity.gridwidth = 4;
+		gbcActivity.weightx = 1.0;
+		gbcActivity.weighty = 1.0;
+		gbcActivity.gridx = 0;
+		gbcActivity.gridy = 2;
+		body.add(buildActivityBox(), gbcActivity);
+		return body;
+	}
+
+	/** The big white rounded box: title + scrolling list of recent actions. */
+	private StudentsFrame.RoundedPanel buildActivityBox() {
+		StudentsFrame.RoundedPanel box = new StudentsFrame.RoundedPanel(Color.WHITE, 20);
+		box.setLayout(new BorderLayout(0, 12));
+		box.setBorder(new EmptyBorder(20, 25, 20, 25));
+
+		JLabel lblTitle = new JLabel("Recent Activity");
+		lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
+		lblTitle.setForeground(DARK_TEAL);
+		box.add(lblTitle, BorderLayout.NORTH);
+
+		activityList = new JPanel();
+		activityList.setOpaque(false);
+		activityList.setLayout(new BoxLayout(activityList, BoxLayout.Y_AXIS));
+
+		JPanel listHolder = new JPanel(new BorderLayout()); // keeps the rows at the top
+		listHolder.setOpaque(false);
+		listHolder.add(activityList, BorderLayout.NORTH);
+
+		JScrollPane scroll = new JScrollPane(listHolder);
+		scroll.setBorder(BorderFactory.createEmptyBorder());
+		scroll.setOpaque(false);
+		scroll.getViewport().setOpaque(false);
+		box.add(scroll, BorderLayout.CENTER);
+		return box;
 	}
 
 	// =================================================================
-	// CUSTOM COMPONENTS
+	// DATA
 	// =================================================================
 
-	/** Panel with a rounded, filled background. */
-	static class RoundedPanel extends JPanel {
-		private static final long serialVersionUID = 1L;
-		private Color bgColor;
-		private int arc;
+	/** Re-reads the numbers and the activity list. Called on open and by the timer. */
+	private void refreshDashboard() {
+		cardEnrolledToday.setValue(DashboardService.enrolledToday());
+		cardTotalStudents.setValue(DashboardService.totalStudents());
+		cardPending.setValue(DashboardService.pendingRequests());
+		cardApproved.setValue(DashboardService.approvedToday());
 
-		public RoundedPanel() {
-			this(Color.WHITE, 20);
+		activityList.removeAll();
+		java.util.List<ActivityLOg.Entry> entries = ActivityLOg.recent(ACTIVITY_LIMIT);
+		if (entries.isEmpty()) {
+			JLabel empty = new JLabel("No recent activity yet.");
+			empty.setFont(new Font("Arial", Font.ITALIC, 13));
+			empty.setForeground(Color.GRAY);
+			activityList.add(empty);
 		}
-
-		public RoundedPanel(Color bgColor, int arc) {
-			this.bgColor = bgColor;
-			this.arc = arc;
-			setOpaque(false);
+		for (ActivityLOg.Entry entry : entries) {
+			activityList.add(buildActivityRow(entry));
 		}
+		activityList.revalidate();
+		activityList.repaint();
+	}
 
-		@Override
-		protected void paintComponent(Graphics g) {
-			super.paintComponent(g);
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g2.setColor(bgColor);
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
-			g2.dispose();
+	private JPanel buildActivityRow(ActivityLOg.Entry entry) {
+		JPanel row = new JPanel(new BorderLayout(15, 0));
+		row.setOpaque(false);
+		row.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(238, 238, 238)),
+				new EmptyBorder(11, 0, 11, 0)));
+
+		// colored tag (Enrollment / Payment / ...) in a fixed-width cell so the rows line up
+		JLabel tag = new JLabel(tagText(entry.type), SwingConstants.CENTER);
+		tag.setOpaque(true);
+		tag.setBackground(tagColor(entry.type));
+		tag.setForeground(Color.WHITE);
+		tag.setFont(new Font("Arial", Font.BOLD, 11));
+		tag.setBorder(new EmptyBorder(4, 8, 4, 8));
+		JPanel tagCell = new JPanel(new GridBagLayout());
+		tagCell.setOpaque(false);
+		tagCell.setPreferredSize(new Dimension(105, 24));
+		GridBagConstraints gbcTag = new GridBagConstraints();
+		gbcTag.anchor = GridBagConstraints.WEST; // all pills start at the same left edge
+		gbcTag.weightx = 1.0;
+		tagCell.add(tag, gbcTag);
+		row.add(tagCell, BorderLayout.WEST);
+
+		JLabel lblMessage = new JLabel(entry.message);
+		lblMessage.setFont(new Font("Arial", Font.PLAIN, 14));
+		row.add(lblMessage, BorderLayout.CENTER);
+
+		JLabel lblTime = new JLabel(entry.timeAgo());
+		lblTime.setFont(new Font("Arial", Font.PLAIN, 12));
+		lblTime.setForeground(Color.GRAY);
+		row.add(lblTime, BorderLayout.EAST);
+		return row;
+	}
+
+	private static String tagText(ActivityLOg.Type type) {
+		switch (type) {
+		case ENROLLMENT: return "Enrollment";
+		case PAYMENT: return "Payment";
+		case STUDENT: return "Student";
+		case DELETED: return "Deleted";
+		default: return "Login";
 		}
 	}
+
+	private static Color tagColor(ActivityLOg.Type type) {
+		switch (type) {
+		case ENROLLMENT: return new Color(38, 128, 98);
+		case PAYMENT: return new Color(60, 115, 190);
+		case STUDENT: return new Color(240, 178, 75);
+		case DELETED: return new Color(215, 78, 85);
+		default: return new Color(130, 140, 145);
+		}
+	}
+
+	@Override
+	public void dispose() {
+		refreshTimer.stop();
+		super.dispose();
+	}
+
+	// =================================================================
+	// CUSTOM COMPONENT
+	// =================================================================
 
 	/** Rounded colored statistic card with a title and a big value. */
-	static class StatCard extends RoundedPanel {
+	static class StatCard extends StudentsFrame.RoundedPanel {
 		private static final long serialVersionUID = 1L;
+		private final JLabel lblCardValue = new JLabel("0");
 
-		public StatCard(String title, String value, Color bgColor) {
+		public StatCard(String title, Color bgColor) {
 			super(bgColor, 16);
 			setLayout(new BorderLayout(0, 0));
 			setPreferredSize(new Dimension(0, 130));
@@ -394,60 +315,14 @@ public class DashboardFrame extends JFrame {
 			lblCardTitle.setFont(new Font("Arial", Font.PLAIN, 13));
 			add(lblCardTitle, BorderLayout.NORTH);
 
-			JLabel lblCardValue = new JLabel(value);
 			lblCardValue.setForeground(Color.WHITE);
 			lblCardValue.setFont(new Font("Arial", Font.PLAIN, 36));
 			add(lblCardValue, BorderLayout.SOUTH);
 		}
-	}
 
-	/** Sidebar navigation item with hover effect and click (action) support. */
-	static class NavItem extends JPanel {
-		private static final long serialVersionUID = 1L;
-		private final String title;
-		private final List<ActionListener> listeners = new ArrayList<ActionListener>();
-
-		public NavItem(String title, final boolean isActive) {
-			this.title = title;
-			setLayout(new BorderLayout(0, 0));
-			setOpaque(true);
-			setBackground(isActive ? ACTIVE_NAV : DARK_TEAL);
-			setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-			JLabel label = new JLabel(title);
-			label.setForeground(Color.WHITE);
-			label.setFont(new Font("Arial", isActive ? Font.BOLD : Font.PLAIN, 15));
-			label.setBorder(new EmptyBorder(10, 20, 10, 20));
-			add(label, BorderLayout.CENTER);
-
-			addMouseListener(new MouseAdapter() {
-				@Override
-				public void mouseEntered(MouseEvent e) {
-					if (!isActive) setBackground(HOVER_TEAL);
-				}
-
-				@Override
-				public void mouseExited(MouseEvent e) {
-					if (!isActive) setBackground(DARK_TEAL);
-				}
-
-				@Override
-				public void mouseClicked(MouseEvent e) {
-					fireAction();
-				}
-			});
-		}
-
-		/** Register a listener that runs when this item is clicked. */
-		public void addActionListener(ActionListener l) {
-			listeners.add(l);
-		}
-
-		private void fireAction() {
-			ActionEvent ev = new ActionEvent(this, ActionEvent.ACTION_PERFORMED, title);
-			for (ActionListener l : new ArrayList<ActionListener>(listeners)) {
-				l.actionPerformed(ev);
-			}
+		/** Updates the big number. */
+		public void setValue(int value) {
+			lblCardValue.setText(String.format("%,d", value));
 		}
 	}
 }

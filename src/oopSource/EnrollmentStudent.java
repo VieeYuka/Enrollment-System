@@ -1,7 +1,9 @@
 package oopSource;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.EventQueue;
@@ -13,6 +15,8 @@ import java.awt.Image;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.net.URL;
 
 import javax.swing.BorderFactory;
@@ -20,35 +24,75 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextField;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 
+/**
+ * Enrollment screen (admin / registrar).
+ *
+ * Two views inside the same frame:
+ *   1. LIST   - table of students who applied (like the Courses screen).
+ *               The last column has a "Review Application" button.
+ *   2. REVIEW - the student's information + the subjects they added,
+ *               with [Cancel] (back to the list) and [Approved] (status -> Enrolled).
+ *
+ * All data comes from EnrollmentService, so MySQL can be added there
+ * without touching this frame.
+ */
 public class EnrollmentStudent extends JFrame {
 
 	private static final long serialVersionUID = 1L;
-	private JPanel contentPane;
-	private String loggedInUser;
-	private String loggedInRole;
 
-	// Student info labels (can be updated from the database)
-	private JLabel lblStudentIdValue;
-	private JLabel lblNameValue;
-	private JLabel lblCourseValue;
-	private JLabel lblYearValue;
+	private static final String VIEW_LIST = "list";
+	private static final String VIEW_REVIEW = "review";
+	private static final String ALL_STATUSES = "All Statuses";
 
-	// Selected subjects
-	private JPanel selectedListPanel;
-	private JLabel lblNoSubjects;
+	// Table columns
+	private static final int STATUS_COL = 5;
+	private static final int ACTIONS_COL = 6;
 
 	// Dark Teal Theme Colors
 	private static final Color DARK_TEAL = new Color(11, 55, 49);
 	private static final Color LIGHT_BG = new Color(235, 235, 235);
 	private static final Color ACCENT_GREEN = new Color(38, 128, 98);
+	private static final Color DISABLED_GRAY = new Color(170, 178, 176);
+	private static final Color PENDING_AMBER = new Color(156, 101, 0);
+
+	private final String loggedInUser;
+	private final String loggedInRole;
+
+	// frame skeleton
+	private JLabel lblHeader;
+	private CardLayout cardLayout;
+	private JPanel cardHolder;
+
+	// list view
+	private DefaultTableModel tableModel;
+	private JTable table;
+	private SearchField txtSearch;
+	private JComboBox<String> cmbStatus;
+
+	// review view
+	private JLabel lblStudentIdValue;
+	private JLabel lblNameValue;
+	private JLabel lblCourseValue;
+	private JLabel lblYearValue;
+	private JLabel lblStatusValue;
+	private JLabel lblTotals;
+	private JPanel selectedListPanel;
+	private JButton btnApprove;
+	private String reviewingKey; // student whose application is open in the review view
 
 	/**
 	 * Launch the application.
@@ -57,7 +101,8 @@ public class EnrollmentStudent extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					EnrollmentStudent frame = new EnrollmentStudent("Admin");
+					Session.login("Admin", Roles.ADMIN);
+					EnrollmentStudent frame = new EnrollmentStudent("Admin", Roles.ADMIN);
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -71,195 +116,76 @@ public class EnrollmentStudent extends JFrame {
 	 * Default constructor
 	 */
 	public EnrollmentStudent() {
-		this("Admin");
+		this(Session.username(), Session.role());
 	}
 
 	/**
 	 * Create the frame.
 	 */
 	public EnrollmentStudent(String username) {
+		this(username, Session.role());
+	}
+
+	/**
+	 * Create the frame.
+	 */
+	public EnrollmentStudent(String username, String role) {
 		this.loggedInUser = username;
+		this.loggedInRole = role;
 
 		setTitle("Rey University - Enrollment Processing");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
 
-		contentPane = new JPanel();
+		JPanel contentPane = new JPanel(new BorderLayout(0, 0));
 		contentPane.setBorder(new EmptyBorder(0, 0, 0, 0));
 		setContentPane(contentPane);
-		contentPane.setLayout(new BorderLayout(0, 0));
 
-		// =============================================================
-		// LEFT SIDEBAR
-		// =============================================================
-		JPanel sidebarPanel = new JPanel();
-		sidebarPanel.setBackground(DARK_TEAL);
-		sidebarPanel.setPreferredSize(new Dimension(280, 720));
-		sidebarPanel.setLayout(new BorderLayout(0, 0));
-		contentPane.add(sidebarPanel, BorderLayout.WEST);
+		contentPane.add(Sidebar.build(this, loggedInUser, loggedInRole, Roles.NAV_ENROLLMENT), BorderLayout.WEST);
 
-		// ---- Logo + Title ----
-		JPanel logoPanel = new JPanel();
-		logoPanel.setOpaque(false);
-		logoPanel.setBorder(new EmptyBorder(20, 15, 20, 15));
-		logoPanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(logoPanel, BorderLayout.NORTH);
-
-		JLabel lblLogo = new JLabel("");
-		lblLogo.setHorizontalAlignment(SwingConstants.CENTER);
-		URL imgUrl = EnrollmentStudent.class.getResource("/RUlogo (1).png");
-		if (imgUrl != null) {
-			Image img = new ImageIcon(imgUrl).getImage().getScaledInstance(45, 45, Image.SCALE_SMOOTH);
-			lblLogo.setIcon(new ImageIcon(img));
-		} else {
-			lblLogo.setText("LOGO");
-			lblLogo.setFont(new Font("Arial", Font.BOLD, 10));
-			lblLogo.setForeground(DARK_TEAL);
-			lblLogo.setOpaque(true);
-			lblLogo.setBackground(Color.WHITE);
-			lblLogo.setPreferredSize(new Dimension(45, 45));
-		}
-		GridBagConstraints gbc_lblLogo = new GridBagConstraints();
-		gbc_lblLogo.insets = new Insets(0, 5, 0, 10);
-		gbc_lblLogo.gridx = 0;
-		gbc_lblLogo.gridy = 0;
-		logoPanel.add(lblLogo, gbc_lblLogo);
-
-		JLabel lblTitle = new JLabel("REY UNIVERSITY");
-		lblTitle.setForeground(Color.WHITE);
-		lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
-		GridBagConstraints gbc_lblTitle = new GridBagConstraints();
-		gbc_lblTitle.insets = new Insets(0, 5, 0, 10);
-		gbc_lblTitle.weightx = 1.0;
-		gbc_lblTitle.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblTitle.gridx = 1;
-		gbc_lblTitle.gridy = 0;
-		logoPanel.add(lblTitle, gbc_lblTitle);
-
-		// ---- Navigation ----
-		JPanel navContainer = new JPanel();
-		navContainer.setOpaque(false);
-		navContainer.setLayout(new GridLayout(8, 1, 0, 10));
-		navContainer.setBorder(new EmptyBorder(10, 15, 10, 15));
-		sidebarPanel.add(navContainer, BorderLayout.CENTER);
-
-		// Dashboard
-		StudentsFrame.NavItem navDashboard = new StudentsFrame.NavItem("Dashboard", false);
-		navDashboard.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new DashboardFrame(loggedInUser, loggedInRole));
-			}
-		});
-		navContainer.add(navDashboard);
-
-		// Students
-		StudentsFrame.NavItem navStudents = new StudentsFrame.NavItem("Students", false);
-		navStudents.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(loggedInUser, loggedInRole));
-			}
-		});
-		navContainer.add(navStudents);
-
-		// Enrollment (current page)
-		StudentsFrame.NavItem navEnrollment = new StudentsFrame.NavItem("Enrollment", true);
-		navContainer.add(navEnrollment);
-
-		// Courses & Schedules
-		StudentsFrame.NavItem navCourses = new StudentsFrame.NavItem("Courses & Schedules", false);
-		navCourses.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new CoursesFrame());
-			}
-		});
-		navContainer.add(navCourses);
-
-		// Tuition & Payments
-		StudentsFrame.NavItem navTuition = new StudentsFrame.NavItem("Tuition & Payments", false);
-		navTuition.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new TuitionFrame());
-			}
-		});
-		navContainer.add(navTuition);
-
-		// ---- Bottom User Profile ----
-		JPanel userProfilePanel = new JPanel();
-		userProfilePanel.setOpaque(false);
-		userProfilePanel.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(255, 255, 255, 40)),
-				new EmptyBorder(15, 15, 15, 15)));
-		userProfilePanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(userProfilePanel, BorderLayout.SOUTH);
-
-		JLabel lblPfp = new JLabel("", SwingConstants.CENTER);
-		lblPfp.setPreferredSize(new Dimension(40, 40));
-		lblPfp.setHorizontalAlignment(SwingConstants.CENTER);
-
-		URL pfpUrl = this.getClass().getResource("/Profile1.png");
-		if (pfpUrl != null) {
-			Image pfpImg = new ImageIcon(pfpUrl).getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-			lblPfp.setIcon(new ImageIcon(pfpImg));
-		} else {
-			lblPfp.setText("PFP");
-			lblPfp.setOpaque(true);
-			lblPfp.setBackground(Color.WHITE);
-			lblPfp.setForeground(DARK_TEAL);
-			lblPfp.setFont(new Font("Arial", Font.BOLD, 10));
-		}
-
-		GridBagConstraints gbc_lblPfp = new GridBagConstraints();
-		gbc_lblPfp.gridheight = 2;
-		gbc_lblPfp.insets = new Insets(0, 0, 0, 12);
-		gbc_lblPfp.gridx = 0;
-		gbc_lblPfp.gridy = 0;
-		userProfilePanel.add(lblPfp, gbc_lblPfp);
-
-		JLabel lblUsername = new JLabel(this.loggedInUser);
-		lblUsername.setForeground(Color.WHITE);
-		lblUsername.setFont(new Font("Arial", Font.BOLD, 15));
-		GridBagConstraints gbc_lblUsername = new GridBagConstraints();
-		gbc_lblUsername.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblUsername.weightx = 1.0;
-		gbc_lblUsername.insets = new Insets(0, 0, 2, 0);
-		gbc_lblUsername.gridx = 1;
-		gbc_lblUsername.gridy = 0;
-		userProfilePanel.add(lblUsername, gbc_lblUsername);
-
-		JLabel lblRole = new JLabel("System Administrator");
-		lblRole.setForeground(new Color(180, 200, 195));
-		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
-		GridBagConstraints gbc_lblRole = new GridBagConstraints();
-		gbc_lblRole.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblRole.weightx = 1.0;
-		gbc_lblRole.gridx = 1;
-		gbc_lblRole.gridy = 1;
-		userProfilePanel.add(lblRole, gbc_lblRole);
-
-		// =============================================================
-		// RIGHT MAIN CONTENT AREA
-		// =============================================================
-		JPanel mainContentPanel = new JPanel();
+		JPanel mainContentPanel = new JPanel(new BorderLayout(0, 0));
 		mainContentPanel.setBackground(LIGHT_BG);
-		mainContentPanel.setLayout(new BorderLayout(0, 0));
 		contentPane.add(mainContentPanel, BorderLayout.CENTER);
 
-		// ---- Top Welcome Bar ----
-		JPanel topBar = new JPanel();
+		mainContentPanel.add(buildTopBar(), BorderLayout.NORTH);
+
+		// ---- Body: header + (list | review) ----
+		JPanel body = new JPanel(new BorderLayout(0, 15));
+		body.setOpaque(false);
+		body.setBorder(new EmptyBorder(25, 25, 25, 25));
+		mainContentPanel.add(body, BorderLayout.CENTER);
+
+		lblHeader = new JLabel();
+		lblHeader.setFont(new Font("Arial", Font.BOLD, 26));
+		lblHeader.setForeground(DARK_TEAL);
+		body.add(lblHeader, BorderLayout.NORTH);
+
+		cardLayout = new CardLayout();
+		cardHolder = new JPanel(cardLayout);
+		cardHolder.setOpaque(false);
+		body.add(cardHolder, BorderLayout.CENTER);
+		cardHolder.add(buildListView(), VIEW_LIST);
+		cardHolder.add(buildReviewView(), VIEW_REVIEW);
+
+		loadTable();
+		showList();
+	}
+
+	// =================================================================
+	// TOP BAR
+	// =================================================================
+	private JPanel buildTopBar() {
+		JPanel topBar = new JPanel(new GridBagLayout());
 		topBar.setBackground(Color.WHITE);
 		topBar.setPreferredSize(new Dimension(0, 70));
 		topBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(220, 220, 220)));
-		topBar.setLayout(new GridBagLayout());
-		mainContentPanel.add(topBar, BorderLayout.NORTH);
 
 		JLabel lblTopPfp = new JLabel("", SwingConstants.CENTER);
 		lblTopPfp.setPreferredSize(new Dimension(38, 38));
-		lblTopPfp.setHorizontalAlignment(SwingConstants.CENTER);
-
-		URL pfpUrl2 = this.getClass().getResource("/Profile2.png");
-		if (pfpUrl2 != null) {
-			Image topPfpImg = new ImageIcon(pfpUrl2).getImage().getScaledInstance(38, 38, Image.SCALE_SMOOTH);
-			lblTopPfp.setIcon(new ImageIcon(topPfpImg));
+		URL pfpUrl = this.getClass().getResource("/Profile2.png");
+		if (pfpUrl != null) {
+			Image img = new ImageIcon(pfpUrl).getImage().getScaledInstance(38, 38, Image.SCALE_SMOOTH);
+			lblTopPfp.setIcon(new ImageIcon(img));
 		} else {
 			lblTopPfp.setText("PFP");
 			lblTopPfp.setOpaque(true);
@@ -267,100 +193,148 @@ public class EnrollmentStudent extends JFrame {
 			lblTopPfp.setForeground(Color.WHITE);
 			lblTopPfp.setFont(new Font("Arial", Font.BOLD, 10));
 		}
+		GridBagConstraints gbcPfp = new GridBagConstraints();
+		gbcPfp.insets = new Insets(0, 25, 0, 12);
+		gbcPfp.gridx = 0;
+		gbcPfp.gridy = 0;
+		topBar.add(lblTopPfp, gbcPfp);
 
-		GridBagConstraints gbc_lblTopPfp = new GridBagConstraints();
-		gbc_lblTopPfp.insets = new Insets(0, 25, 0, 12);
-		gbc_lblTopPfp.gridx = 0;
-		gbc_lblTopPfp.gridy = 0;
-		topBar.add(lblTopPfp, gbc_lblTopPfp);
-
-		JLabel lblWelcomeMsg = new JLabel("Welcome, " + this.loggedInUser);
+		JLabel lblWelcomeMsg = new JLabel("Welcome, " + loggedInUser);
 		lblWelcomeMsg.setFont(new Font("Arial", Font.BOLD, 20));
-		GridBagConstraints gbc_lblWelcomeMsg = new GridBagConstraints();
-		gbc_lblWelcomeMsg.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblWelcomeMsg.weightx = 1.0;
-		gbc_lblWelcomeMsg.gridx = 1;
-		gbc_lblWelcomeMsg.gridy = 0;
-		topBar.add(lblWelcomeMsg, gbc_lblWelcomeMsg);
+		GridBagConstraints gbcWelcome = new GridBagConstraints();
+		gbcWelcome.fill = GridBagConstraints.HORIZONTAL;
+		gbcWelcome.weightx = 1.0;
+		gbcWelcome.gridx = 1;
+		gbcWelcome.gridy = 0;
+		topBar.add(lblWelcomeMsg, gbcWelcome);
+		return topBar;
+	}
 
-		// ---- Enrollment Screen Body ----
-		JPanel enrollBody = new JPanel();
-		enrollBody.setOpaque(false);
-		enrollBody.setBorder(new EmptyBorder(25, 25, 25, 25));
-		enrollBody.setLayout(new BorderLayout(0, 20));
-		mainContentPanel.add(enrollBody, BorderLayout.CENTER);
+	// =================================================================
+	// VIEW 1: LIST OF APPLICATIONS (same style as the Courses table)
+	// =================================================================
+	private JPanel buildListView() {
+		StudentsFrame.RoundedPanel card = new StudentsFrame.RoundedPanel(Color.WHITE, 20);
+		card.setLayout(new BorderLayout(0, 15));
+		card.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-		// ---- Header + Search Subjects (stacked at the top) ----
-		JPanel topSection = new JPanel();
-		topSection.setOpaque(false);
-		topSection.setLayout(new BorderLayout(0, 15));
-		enrollBody.add(topSection, BorderLayout.NORTH);
+		// ---- Search (ID or name) + status filter ----
+		JPanel filterRow = new JPanel(new BorderLayout(10, 0));
+		filterRow.setOpaque(false);
+		card.add(filterRow, BorderLayout.NORTH);
 
-		JLabel lblHeader = new JLabel("Enroll Student");
-		lblHeader.setFont(new Font("Arial", Font.BOLD, 26));
-		lblHeader.setForeground(DARK_TEAL);
-		topSection.add(lblHeader, BorderLayout.NORTH);
-
-		// Search Subjects card
-		StudentsFrame.RoundedPanel searchCard = new StudentsFrame.RoundedPanel(Color.WHITE, 20);
-		searchCard.setLayout(new BorderLayout(0, 12));
-		searchCard.setBorder(new EmptyBorder(15, 20, 15, 20));
-		topSection.add(searchCard, BorderLayout.CENTER);
-
-		JLabel lblSearchTitle = new JLabel("Search Students");
-		lblSearchTitle.setFont(new Font("Arial", Font.BOLD, 16));
-		lblSearchTitle.setForeground(DARK_TEAL);
-		searchCard.add(lblSearchTitle, BorderLayout.NORTH);
-
-		JPanel searchRow = new JPanel();
-		searchRow.setOpaque(false);
-		searchRow.setLayout(new BorderLayout(10, 0));
-		searchCard.add(searchRow, BorderLayout.CENTER);
-
-		final JTextField txtSearch = new JTextField("Enter student ID or name...");
-		txtSearch.setFont(new Font("Arial", Font.PLAIN, 13));
-		txtSearch.setForeground(Color.GRAY);
-		txtSearch.setPreferredSize(new Dimension(0, 40));
-		searchRow.add(txtSearch, BorderLayout.CENTER);
-
-		JButton btnSearch = new JButton("Search");
-		btnSearch.setFont(new Font("Arial", Font.BOLD, 13));
-		btnSearch.setBackground(ACCENT_GREEN);
-		btnSearch.setForeground(Color.WHITE);
-		btnSearch.setFocusPainted(false);
-		btnSearch.setCursor(new Cursor(Cursor.HAND_CURSOR));
-		btnSearch.setPreferredSize(new Dimension(140, 40));
-		btnSearch.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-		
-		//ditooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-		
-		btnSearch.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				// TODO: search subjects (e.g. from MySQL) using txtSearch.getText().trim()
+		txtSearch = new SearchField("Search student ID or name...", 0, new Runnable() {
+			public void run() {
+				loadTable();
 			}
 		});
-		
-		searchRow.add(btnSearch, BorderLayout.EAST);
+		txtSearch.setPreferredSize(new Dimension(0, 38));
+		filterRow.add(txtSearch, BorderLayout.CENTER);
 
-		// ---- Two cards: Student Information | Selected Subjects ----
-		JPanel cardsRow = new JPanel();
+		cmbStatus = new JComboBox<String>(new String[] {
+				ALL_STATUSES, EnrollmentService.PENDING, EnrollmentService.ENROLLED});
+		cmbStatus.setFont(new Font("Arial", Font.PLAIN, 13));
+		cmbStatus.setPreferredSize(new Dimension(200, 38));
+		cmbStatus.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				loadTable();
+			}
+		});
+		filterRow.add(cmbStatus, BorderLayout.EAST);
+
+		// ---- Table ----
+		String[] columns = {"Student ID", "Name", "Course", "Year Level", "Units", "Status", "Actions"};
+		tableModel = new DefaultTableModel(columns, 0) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public boolean isCellEditable(int row, int column) {
+				return false;
+			}
+		};
+
+		table = new JTable(tableModel);
+		table.setFont(new Font("Arial", Font.PLAIN, 13));
+		table.setRowHeight(48);
+		table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		table.setRowSelectionAllowed(false);
+		table.getTableHeader().setFont(new Font("Arial", Font.BOLD, 13));
+		table.getTableHeader().setBackground(new Color(240, 240, 240));
+		table.getTableHeader().setForeground(DARK_TEAL);
+		table.getTableHeader().setReorderingAllowed(false);
+		table.setShowVerticalLines(false);
+		table.setGridColor(new Color(230, 230, 230));
+
+		for (int i = 0; i < ACTIONS_COL; i++) {
+			int align = (i == 4) ? SwingConstants.CENTER : SwingConstants.LEFT; // Units centered
+			table.getColumnModel().getColumn(i).setCellRenderer(new TextCellRenderer(align, i == STATUS_COL));
+		}
+		table.getColumnModel().getColumn(ACTIONS_COL).setCellRenderer(new ReviewButtonRenderer());
+
+		table.getColumnModel().getColumn(0).setPreferredWidth(110);
+		table.getColumnModel().getColumn(1).setPreferredWidth(220);
+		table.getColumnModel().getColumn(2).setPreferredWidth(90);
+		table.getColumnModel().getColumn(3).setPreferredWidth(100);
+		table.getColumnModel().getColumn(4).setPreferredWidth(60);
+		table.getColumnModel().getColumn(STATUS_COL).setPreferredWidth(100);
+		table.getColumnModel().getColumn(ACTIONS_COL).setPreferredWidth(190);
+
+		// Click on "Review Application"
+		table.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				int row = table.rowAtPoint(e.getPoint());
+				int col = table.columnAtPoint(e.getPoint());
+				if (row < 0 || col != ACTIONS_COL) return;
+				showReview(String.valueOf(tableModel.getValueAt(row, 0)));
+			}
+		});
+		table.addMouseMotionListener(new MouseAdapter() {
+			@Override
+			public void mouseMoved(MouseEvent e) {
+				int col = table.columnAtPoint(e.getPoint());
+				table.setCursor(col == ACTIONS_COL ? new Cursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
+			}
+		});
+
+		JScrollPane scrollPane = new JScrollPane(table,
+				JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		scrollPane.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230)));
+		scrollPane.getViewport().setBackground(Color.WHITE);
+		card.add(scrollPane, BorderLayout.CENTER);
+		return card;
+	}
+
+	/** Fills the table with the applications that match the search box and the status filter. */
+	private void loadTable() {
+		tableModel.setRowCount(0);
+		String status = String.valueOf(cmbStatus.getSelectedItem());
+		for (EnrollmentService.Enrollment e : EnrollmentService.search(txtSearch.getQuery(), status)) {
+			tableModel.addRow(new Object[] {
+					e.studentKey, e.name, e.course, e.yearLevel, e.units, e.status, "" });
+		}
+	}
+
+	// =================================================================
+	// VIEW 2: REVIEW APPLICATION (student information + added subjects)
+	// =================================================================
+	private JPanel buildReviewView() {
+		JPanel cardsRow = new JPanel(new GridBagLayout());
 		cardsRow.setOpaque(false);
-		cardsRow.setLayout(new GridBagLayout());
-		enrollBody.add(cardsRow, BorderLayout.CENTER);
 
 		// ===== Student Information card (left) =====
 		StudentsFrame.RoundedPanel studentCard = new StudentsFrame.RoundedPanel(Color.WHITE, 20);
 		studentCard.setLayout(new BorderLayout(0, 15));
 		studentCard.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-		GridBagConstraints gbc_studentCard = new GridBagConstraints();
-		gbc_studentCard.gridx = 0;
-		gbc_studentCard.gridy = 0;
-		gbc_studentCard.weightx = 0.6;
-		gbc_studentCard.weighty = 1.0;
-		gbc_studentCard.fill = GridBagConstraints.BOTH;
-		gbc_studentCard.insets = new Insets(0, 0, 0, 10);
-		cardsRow.add(studentCard, gbc_studentCard);
+		GridBagConstraints gbcStudent = new GridBagConstraints();
+		gbcStudent.gridx = 0;
+		gbcStudent.gridy = 0;
+		gbcStudent.weightx = 0.6;
+		gbcStudent.weighty = 1.0;
+		gbcStudent.fill = GridBagConstraints.BOTH;
+		gbcStudent.insets = new Insets(0, 0, 0, 10);
+		cardsRow.add(studentCard, gbcStudent);
 
 		JLabel lblStudentInfoTitle = new JLabel("Student Information");
 		lblStudentInfoTitle.setFont(new Font("Arial", Font.BOLD, 18));
@@ -370,59 +344,57 @@ public class EnrollmentStudent extends JFrame {
 				new EmptyBorder(0, 0, 10, 0)));
 		studentCard.add(lblStudentInfoTitle, BorderLayout.NORTH);
 
-		JPanel studentInfoBody = new JPanel();
-		studentInfoBody.setOpaque(false);
-		studentInfoBody.setLayout(new GridBagLayout());
-		studentCard.add(studentInfoBody, BorderLayout.CENTER);
+		JPanel infoBody = new JPanel(new GridBagLayout());
+		infoBody.setOpaque(false);
+		studentCard.add(infoBody, BorderLayout.CENTER);
 
-		// Student photo
-		JLabel lblStudentPhoto = new JLabel("", SwingConstants.CENTER);
-		lblStudentPhoto.setPreferredSize(new Dimension(100, 100));
+		JLabel lblPhoto = new JLabel("", SwingConstants.CENTER);
+		lblPhoto.setPreferredSize(new Dimension(100, 100));
 		URL photoUrl = this.getClass().getResource("/Profile3.png");
 		if (photoUrl != null) {
 			Image photoImg = new ImageIcon(photoUrl).getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
-			lblStudentPhoto.setIcon(new ImageIcon(photoImg));
+			lblPhoto.setIcon(new ImageIcon(photoImg));
 		} else {
-			lblStudentPhoto.setText("PHOTO");
-			lblStudentPhoto.setOpaque(true);
-			lblStudentPhoto.setBackground(new Color(200, 205, 208));
-			lblStudentPhoto.setForeground(Color.WHITE);
-			lblStudentPhoto.setFont(new Font("Arial", Font.BOLD, 12));
+			lblPhoto.setText("PHOTO");
+			lblPhoto.setOpaque(true);
+			lblPhoto.setBackground(new Color(200, 205, 208));
+			lblPhoto.setForeground(Color.WHITE);
+			lblPhoto.setFont(new Font("Arial", Font.BOLD, 12));
 		}
-		GridBagConstraints gbc_photo = new GridBagConstraints();
-		gbc_photo.gridx = 0;
-		gbc_photo.gridy = 0;
-		gbc_photo.gridheight = 4;
-		gbc_photo.anchor = GridBagConstraints.NORTHWEST;
-		gbc_photo.insets = new Insets(10, 0, 0, 30);
-		studentInfoBody.add(lblStudentPhoto, gbc_photo);
+		GridBagConstraints gbcPhoto = new GridBagConstraints();
+		gbcPhoto.gridx = 0;
+		gbcPhoto.gridy = 0;
+		gbcPhoto.gridheight = 5;
+		gbcPhoto.anchor = GridBagConstraints.NORTHWEST;
+		gbcPhoto.insets = new Insets(10, 0, 0, 30);
+		infoBody.add(lblPhoto, gbcPhoto);
 
-		lblStudentIdValue = addInfoRow(studentInfoBody, 0, "Student ID:", "RU-2025-0001");
-		lblNameValue = addInfoRow(studentInfoBody, 1, "Name:", "Santos, Maria A.");
-		lblCourseValue = addInfoRow(studentInfoBody, 2, "Course:", "BSIT");
-		lblYearValue = addInfoRow(studentInfoBody, 3, "Year Level:", "1st Year");
+		lblStudentIdValue = addInfoRow(infoBody, 0, "Student ID:");
+		lblNameValue = addInfoRow(infoBody, 1, "Name:");
+		lblCourseValue = addInfoRow(infoBody, 2, "Course:");
+		lblYearValue = addInfoRow(infoBody, 3, "Year Level:");
+		lblStatusValue = addInfoRow(infoBody, 4, "Status:");
 
-		// Filler so the rows stay at the top
-		GridBagConstraints gbc_filler = new GridBagConstraints();
-		gbc_filler.gridx = 2;
-		gbc_filler.gridy = 4;
-		gbc_filler.weightx = 1.0;
-		gbc_filler.weighty = 1.0;
-		studentInfoBody.add(Box.createGlue(), gbc_filler);
+		GridBagConstraints gbcFiller = new GridBagConstraints(); // keeps the rows at the top
+		gbcFiller.gridx = 2;
+		gbcFiller.gridy = 5;
+		gbcFiller.weightx = 1.0;
+		gbcFiller.weighty = 1.0;
+		infoBody.add(Box.createGlue(), gbcFiller);
 
 		// ===== Selected Subjects card (right) =====
 		StudentsFrame.RoundedPanel subjectsCard = new StudentsFrame.RoundedPanel(Color.WHITE, 20);
 		subjectsCard.setLayout(new BorderLayout(0, 15));
 		subjectsCard.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-		GridBagConstraints gbc_subjectsCard = new GridBagConstraints();
-		gbc_subjectsCard.gridx = 1;
-		gbc_subjectsCard.gridy = 0;
-		gbc_subjectsCard.weightx = 0.4;
-		gbc_subjectsCard.weighty = 1.0;
-		gbc_subjectsCard.fill = GridBagConstraints.BOTH;
-		gbc_subjectsCard.insets = new Insets(0, 10, 0, 0);
-		cardsRow.add(subjectsCard, gbc_subjectsCard);
+		GridBagConstraints gbcSubjects = new GridBagConstraints();
+		gbcSubjects.gridx = 1;
+		gbcSubjects.gridy = 0;
+		gbcSubjects.weightx = 0.4;
+		gbcSubjects.weighty = 1.0;
+		gbcSubjects.fill = GridBagConstraints.BOTH;
+		gbcSubjects.insets = new Insets(0, 10, 0, 0);
+		cardsRow.add(subjectsCard, gbcSubjects);
 
 		JLabel lblSelectedTitle = new JLabel("Selected Subjects");
 		lblSelectedTitle.setFont(new Font("Arial", Font.BOLD, 18));
@@ -433,26 +405,28 @@ public class EnrollmentStudent extends JFrame {
 		selectedListPanel.setBackground(Color.WHITE);
 		selectedListPanel.setLayout(new BoxLayout(selectedListPanel, BoxLayout.Y_AXIS));
 
-		lblNoSubjects = new JLabel("No subjects selected yet.", SwingConstants.CENTER);
-		lblNoSubjects.setFont(new Font("Arial", Font.PLAIN, 13));
-		lblNoSubjects.setForeground(Color.GRAY);
+		JPanel listHolder = new JPanel(new BorderLayout()); // keeps the rows at the top
+		listHolder.setBackground(Color.WHITE);
+		listHolder.add(selectedListPanel, BorderLayout.NORTH);
 
-		// Placeholder wrapper keeps the empty message centered
-		final JPanel emptyWrapper = new JPanel(new BorderLayout());
-		emptyWrapper.setBackground(Color.WHITE);
-		emptyWrapper.add(lblNoSubjects, BorderLayout.CENTER);
-		selectedListPanel.add(emptyWrapper);
-
-		JScrollPane subjectsScroll = new JScrollPane(selectedListPanel);
+		JScrollPane subjectsScroll = new JScrollPane(listHolder);
 		subjectsScroll.setBorder(BorderFactory.createLineBorder(new Color(225, 225, 225)));
 		subjectsScroll.getViewport().setBackground(Color.WHITE);
 		subjectsCard.add(subjectsScroll, BorderLayout.CENTER);
 
-		// Cancel / Next buttons
-		JPanel buttonRow = new JPanel();
+		// ---- bottom: totals + Cancel / Approved ----
+		JPanel bottom = new JPanel(new BorderLayout(0, 12));
+		bottom.setOpaque(false);
+		subjectsCard.add(bottom, BorderLayout.SOUTH);
+
+		lblTotals = new JLabel(" ");
+		lblTotals.setFont(new Font("Arial", Font.BOLD, 14));
+		lblTotals.setForeground(DARK_TEAL);
+		bottom.add(lblTotals, BorderLayout.NORTH);
+
+		JPanel buttonRow = new JPanel(new GridBagLayout());
 		buttonRow.setOpaque(false);
-		buttonRow.setLayout(new GridBagLayout());
-		subjectsCard.add(buttonRow, BorderLayout.SOUTH);
+		bottom.add(buttonRow, BorderLayout.CENTER);
 
 		JButton btnCancel = new JButton("Cancel");
 		btnCancel.setFont(new Font("Arial", Font.BOLD, 13));
@@ -464,89 +438,230 @@ public class EnrollmentStudent extends JFrame {
 		btnCancel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
 		btnCancel.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(loggedInUser, loggedInRole));
+				showList(); // back to the table, nothing changed
 			}
 		});
-		GridBagConstraints gbc_cancel = new GridBagConstraints();
-		gbc_cancel.gridx = 0;
-		gbc_cancel.gridy = 0;
-		gbc_cancel.weightx = 1.0;
-		gbc_cancel.anchor = GridBagConstraints.EAST;
-		gbc_cancel.insets = new Insets(0, 0, 0, 10);
-		buttonRow.add(btnCancel, gbc_cancel);
+		GridBagConstraints gbcCancel = new GridBagConstraints();
+		gbcCancel.gridx = 0;
+		gbcCancel.gridy = 0;
+		gbcCancel.weightx = 1.0;
+		gbcCancel.anchor = GridBagConstraints.EAST;
+		gbcCancel.insets = new Insets(0, 0, 0, 10);
+		buttonRow.add(btnCancel, gbcCancel);
 
-		JButton btnNext = new JButton("Next");
-		btnNext.setFont(new Font("Arial", Font.BOLD, 13));
-		btnNext.setBackground(ACCENT_GREEN);
-		btnNext.setForeground(Color.WHITE);
-		btnNext.setFocusPainted(false);
-		btnNext.setCursor(new Cursor(Cursor.HAND_CURSOR));
-		btnNext.setPreferredSize(new Dimension(110, 38));
-		btnNext.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-		btnNext.addActionListener(new ActionListener() {
+		btnApprove = new JButton("Approved");
+		btnApprove.setFont(new Font("Arial", Font.BOLD, 13));
+		btnApprove.setBackground(ACCENT_GREEN);
+		btnApprove.setForeground(Color.WHITE);
+		btnApprove.setOpaque(true);
+		btnApprove.setBorderPainted(false);
+		btnApprove.setFocusPainted(false);
+		btnApprove.setCursor(new Cursor(Cursor.HAND_CURSOR));
+		btnApprove.setPreferredSize(new Dimension(110, 38));
+		btnApprove.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				// TODO: proceed to the next step / save the enrollment
+				confirmApproval();
 			}
 		});
-		GridBagConstraints gbc_next = new GridBagConstraints();
-		gbc_next.gridx = 1;
-		gbc_next.gridy = 0;
-		buttonRow.add(btnNext, gbc_next);
+		GridBagConstraints gbcApprove = new GridBagConstraints();
+		gbcApprove.gridx = 1;
+		gbcApprove.gridy = 0;
+		buttonRow.add(btnApprove, gbcApprove);
+
+		return cardsRow;
 	}
 
 	/** Adds one "Label: Value" row to the student info panel and returns the value label. */
-	private JLabel addInfoRow(JPanel parent, int row, String caption, String value) {
+	private JLabel addInfoRow(JPanel parent, int row, String caption) {
 		JLabel lblCaption = new JLabel(caption);
 		lblCaption.setFont(new Font("Arial", Font.PLAIN, 14));
 		lblCaption.setForeground(new Color(110, 110, 110));
-		GridBagConstraints gbc_caption = new GridBagConstraints();
-		gbc_caption.gridx = 1;
-		gbc_caption.gridy = row;
-		gbc_caption.anchor = GridBagConstraints.WEST;
-		gbc_caption.insets = new Insets(8, 0, 8, 20);
-		parent.add(lblCaption, gbc_caption);
+		GridBagConstraints gbcCaption = new GridBagConstraints();
+		gbcCaption.gridx = 1;
+		gbcCaption.gridy = row;
+		gbcCaption.anchor = GridBagConstraints.WEST;
+		gbcCaption.insets = new Insets(8, 0, 8, 20);
+		parent.add(lblCaption, gbcCaption);
 
-		JLabel lblValue = new JLabel(value);
+		JLabel lblValue = new JLabel(" ");
 		lblValue.setFont(new Font("Arial", Font.BOLD, 14));
 		lblValue.setForeground(Color.BLACK);
-		GridBagConstraints gbc_value = new GridBagConstraints();
-		gbc_value.gridx = 2;
-		gbc_value.gridy = row;
-		gbc_value.anchor = GridBagConstraints.WEST;
-		gbc_value.insets = new Insets(8, 0, 8, 0);
-		parent.add(lblValue, gbc_value);
+		GridBagConstraints gbcValue = new GridBagConstraints();
+		gbcValue.gridx = 2;
+		gbcValue.gridy = row;
+		gbcValue.anchor = GridBagConstraints.WEST;
+		gbcValue.insets = new Insets(8, 0, 8, 0);
+		parent.add(lblValue, gbcValue);
 		return lblValue;
 	}
 
-	/**
-	 * Shows the next frame (same position as this one) and closes this frame.
-	 */
-	private void openFrame(JFrame next) {
-		next.setBounds(getBounds());
-		next.setVisible(true);
-		dispose();
+	// =================================================================
+	// LOGIC
+	// =================================================================
+
+	/** Shows the table of applications. */
+	private void showList() {
+		reviewingKey = null;
+		lblHeader.setText("Enrollment Applications");
+		loadTable(); // pick up any status change
+		cardLayout.show(cardHolder, VIEW_LIST);
 	}
 
-	/** Update the student information card (e.g. from MySQL). */
-	public void setStudentInfo(String studentId, String name, String course, String yearLevel) {
-		lblStudentIdValue.setText(studentId);
-		lblNameValue.setText(name);
-		lblCourseValue.setText(course);
-		lblYearValue.setText(yearLevel);
-	}
-
-	/** Add a subject to the "Selected Subjects" list. */
-	public void addSelectedSubject(String subjectText) {
-		// Remove the "No subjects selected yet." placeholder the first time
-		if (lblNoSubjects.getParent() != null) {
-			selectedListPanel.removeAll();
-//			lblNoSubjects.setParent_removed();
+	/** Opens the review view for one student: their information and the subjects they added. */
+	private void showReview(String studentKey) {
+		EnrollmentService.Enrollment app = EnrollmentService.find(studentKey);
+		if (app == null) {
+			return;
 		}
-		JLabel item = new JLabel(subjectText);
-		item.setFont(new Font("Arial", Font.PLAIN, 13));
-		item.setBorder(new EmptyBorder(8, 10, 8, 10));
-		selectedListPanel.add(item);
+		reviewingKey = studentKey;
+		lblHeader.setText("Review Application");
+
+		lblStudentIdValue.setText(app.studentKey);
+		lblNameValue.setText(app.name);
+		lblCourseValue.setText(app.course);
+		lblYearValue.setText(app.yearLevel);
+		showStatus(app.status);
+
+		// subjects
+		selectedListPanel.removeAll();
+		if (app.subjects.isEmpty()) {
+			JLabel none = new JLabel("No subjects were added.", SwingConstants.CENTER);
+			none.setFont(new Font("Arial", Font.PLAIN, 13));
+			none.setForeground(Color.GRAY);
+			none.setBorder(new EmptyBorder(20, 10, 20, 10));
+			selectedListPanel.add(none);
+		}
+		for (Object[] subject : app.subjects) {
+			selectedListPanel.add(buildSubjectRow(subject));
+		}
 		selectedListPanel.revalidate();
 		selectedListPanel.repaint();
+		lblTotals.setText("Total Subjects: " + app.subjectCount() + "     |     Total Units: " + app.units);
+
+		// Already enrolled -> nothing left to approve
+		boolean canApprove = EnrollmentService.PENDING.equals(app.status);
+		btnApprove.setEnabled(canApprove);
+		btnApprove.setBackground(canApprove ? ACCENT_GREEN : DISABLED_GRAY);
+		btnApprove.setCursor(canApprove ? new Cursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
+
+		cardLayout.show(cardHolder, VIEW_REVIEW);
+	}
+
+	private void showStatus(String status) {
+		boolean enrolled = EnrollmentService.ENROLLED.equals(status);
+		lblStatusValue.setText(status);
+		lblStatusValue.setForeground(enrolled ? TuitionFrame.PAID_GREEN : PENDING_AMBER);
+	}
+
+	/** One line in the Selected Subjects list: "CCS101  Introduction to Computing   3 units". */
+	private JPanel buildSubjectRow(Object[] subject) {
+		JPanel row = new JPanel(new BorderLayout(12, 0));
+		row.setBackground(Color.WHITE);
+		row.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(238, 238, 238)),
+				new EmptyBorder(9, 10, 9, 10)));
+
+		JLabel lblCode = new JLabel(String.valueOf(subject[0]));
+		lblCode.setFont(new Font("Arial", Font.BOLD, 13));
+		lblCode.setForeground(DARK_TEAL);
+		lblCode.setPreferredSize(new Dimension(70, 18));
+		row.add(lblCode, BorderLayout.WEST);
+
+		JLabel lblTitle = new JLabel(String.valueOf(subject[1]));
+		lblTitle.setFont(new Font("Arial", Font.PLAIN, 13));
+		row.add(lblTitle, BorderLayout.CENTER);
+
+		JLabel lblUnits = new JLabel(subject[2] + " units");
+		lblUnits.setFont(new Font("Arial", Font.PLAIN, 12));
+		lblUnits.setForeground(Color.GRAY);
+		row.add(lblUnits, BorderLayout.EAST);
+		return row;
+	}
+
+	/** [Approved] button: asks first, then approves. */
+	private void confirmApproval() {
+		if (reviewingKey == null) {
+			return;
+		}
+		int choice = JOptionPane.showConfirmDialog(this,
+				"Approve the enrollment application of " + lblNameValue.getText() + "?",
+				"Approve Application", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+		if (choice != JOptionPane.YES_OPTION) {
+			return;
+		}
+		String name = lblNameValue.getText();
+		if (approveCurrent()) {
+			JOptionPane.showMessageDialog(this, name + " is now Enrolled.",
+					"Application Approved", JOptionPane.INFORMATION_MESSAGE);
+		}
+	}
+
+	/**
+	 * Does the approval (no pop-ups): status Pending -> Enrolled, then back to the list.
+	 * @return true if it was approved
+	 */
+	private boolean approveCurrent() {
+		boolean approved = reviewingKey != null && EnrollmentService.approve(reviewingKey);
+		showList(); // table now shows the new status
+		return approved;
+	}
+
+	// =================================================================
+	// TABLE RENDERERS
+	// =================================================================
+
+	/** Plain cell renderer; the Status column is colored (green Enrolled / amber Pending). */
+	private static class TextCellRenderer extends DefaultTableCellRenderer {
+		private static final long serialVersionUID = 1L;
+		private final int align;
+		private final boolean statusColumn;
+
+		TextCellRenderer(int align, boolean statusColumn) {
+			this.align = align;
+			this.statusColumn = statusColumn;
+		}
+
+		@Override
+		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+				boolean hasFocus, int row, int column) {
+			super.getTableCellRendererComponent(table, value, false, false, row, column);
+			setHorizontalAlignment(align);
+			setBorder(new EmptyBorder(0, 12, 0, 12));
+			setBackground(Color.WHITE);
+			if (statusColumn) {
+				boolean enrolled = EnrollmentService.ENROLLED.equals(String.valueOf(value));
+				setFont(new Font("Arial", Font.BOLD, 13));
+				setForeground(enrolled ? TuitionFrame.PAID_GREEN : PENDING_AMBER);
+			} else {
+				setFont(new Font("Arial", Font.PLAIN, 13));
+				setForeground(Color.BLACK);
+			}
+			return this;
+		}
+	}
+
+	/** Draws the green "Review Application" button in the Actions column. */
+	private static class ReviewButtonRenderer extends JPanel implements TableCellRenderer {
+		private static final long serialVersionUID = 1L;
+
+		ReviewButtonRenderer() {
+			setLayout(new GridLayout(1, 1));
+			setBorder(new EmptyBorder(8, 8, 8, 8));
+			setBackground(Color.WHITE);
+
+			JButton b = new JButton("Review Application");
+			b.setFont(new Font("Arial", Font.BOLD, 12));
+			b.setBackground(ACCENT_GREEN);
+			b.setForeground(Color.WHITE);
+			b.setOpaque(true);
+			b.setBorderPainted(false);
+			b.setFocusable(false);
+			add(b);
+		}
+
+		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+				boolean hasFocus, int row, int column) {
+			return this;
+		}
 	}
 }

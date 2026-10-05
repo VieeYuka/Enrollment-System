@@ -69,6 +69,7 @@ public class CoursesFrame extends JFrame {
 	private CardLayout cardLayout;
 	private JPanel cardHolder;
 	private String loggedInRole;
+	private boolean canManageCourses; // admin / registrar only: shows the Delete button
 
 	private static final int ACTIONS_COL = 4;
 	private static final String SEARCH_HINT = "Search course code or title...";
@@ -88,7 +89,8 @@ public class CoursesFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					CoursesFrame frame = new CoursesFrame("Registrar","registar");
+					Session.login("Admin", Roles.ADMIN);
+					CoursesFrame frame = new CoursesFrame("Admin", Roles.ADMIN);
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -102,7 +104,7 @@ public class CoursesFrame extends JFrame {
 	 * Default constructor
 	 */
 	public CoursesFrame() {
-		this("registrar01","registrar");
+		this(Session.username(), Session.role());
 	}
 
 	/**
@@ -111,6 +113,7 @@ public class CoursesFrame extends JFrame {
 	public CoursesFrame(String username, String role) {
 		this.loggedInUser = username;
 		this.loggedInRole = role;
+		this.canManageCourses = Roles.canManageCourses(role);
 		setTitle("Rey University - Courses & Schedules");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
@@ -120,145 +123,7 @@ public class CoursesFrame extends JFrame {
 		setContentPane(contentPane);
 		contentPane.setLayout(new BorderLayout(0, 0));
 
-		// =============================================================
-		// LEFT SIDEBAR
-		// =============================================================
-		JPanel sidebarPanel = new JPanel();
-		sidebarPanel.setBackground(DARK_TEAL);
-		sidebarPanel.setPreferredSize(new Dimension(280, 720));
-		sidebarPanel.setLayout(new BorderLayout(0, 0));
-		contentPane.add(sidebarPanel, BorderLayout.WEST);
-
-		// ---- Logo + Title ----
-		JPanel logoPanel = new JPanel();
-		logoPanel.setOpaque(false);
-		logoPanel.setBorder(new EmptyBorder(20, 15, 20, 15));
-		logoPanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(logoPanel, BorderLayout.NORTH);
-
-		JLabel lblLogo = new JLabel("");
-		lblLogo.setHorizontalAlignment(SwingConstants.CENTER);
-		URL imgUrl = CoursesFrame.class.getResource("/RUlogo (1).png");
-		if (imgUrl != null) {
-			Image img = new ImageIcon(imgUrl).getImage().getScaledInstance(45, 45, Image.SCALE_SMOOTH);
-			lblLogo.setIcon(new ImageIcon(img));
-		} else {
-			lblLogo.setText("LOGO");
-			lblLogo.setFont(new Font("Arial", Font.BOLD, 10));
-			lblLogo.setForeground(DARK_TEAL);
-			lblLogo.setOpaque(true);
-			lblLogo.setBackground(Color.WHITE);
-			lblLogo.setPreferredSize(new Dimension(45, 45));
-		}
-		GridBagConstraints gbc_lblLogo = new GridBagConstraints();
-		gbc_lblLogo.insets = new Insets(0, 5, 0, 10);
-		gbc_lblLogo.gridx = 0;
-		gbc_lblLogo.gridy = 0;
-		logoPanel.add(lblLogo, gbc_lblLogo);
-
-		JLabel lblTitle = new JLabel("REY UNIVERSITY");
-		lblTitle.setForeground(Color.WHITE);
-		lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
-		GridBagConstraints gbc_lblTitle = new GridBagConstraints();
-		gbc_lblTitle.insets = new Insets(0, 5, 0, 10);
-		gbc_lblTitle.weightx = 1.0;
-		gbc_lblTitle.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblTitle.gridx = 1;
-		gbc_lblTitle.gridy = 0;
-		logoPanel.add(lblTitle, gbc_lblTitle);
-
-		// ---- Navigation ----
-		JPanel navContainer = new JPanel();
-		navContainer.setOpaque(false);
-		navContainer.setLayout(new GridLayout(8, 1, 0, 10));
-		navContainer.setBorder(new EmptyBorder(10, 15, 10, 15));
-		sidebarPanel.add(navContainer, BorderLayout.CENTER);
-
-		StudentsFrame.NavItem navDashboard = new StudentsFrame.NavItem("Dashboard", false);
-		navDashboard.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new DashboardFrame(loggedInUser, loggedInRole));
-			}
-		});
-		navContainer.add(navDashboard);
-
-		StudentsFrame.NavItem navStudents = new StudentsFrame.NavItem("Students", false);
-		navStudents.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new StudentsFrame(loggedInUser, loggedInRole));
-			}
-		});
-		navContainer.add(navStudents);
-
-		StudentsFrame.NavItem navEnrollment = new StudentsFrame.NavItem("Enrollment", false);
-		navEnrollment.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new EnrollmentStudent(loggedInUser));
-			}
-		});
-		navContainer.add(navEnrollment);
-
-		// Courses & Schedules (current page)
-		StudentsFrame.NavItem navCourses = new StudentsFrame.NavItem("Courses & Schedules", true);
-		navContainer.add(navCourses);
-
-		StudentsFrame.NavItem navTuition = new StudentsFrame.NavItem("Tuition & Payments", false);
-		navTuition.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new TuitionFrame());
-			}
-		});
-		navContainer.add(navTuition);
-
-		// ---- Bottom User Profile ----
-		JPanel userProfilePanel = new JPanel();
-		userProfilePanel.setOpaque(false);
-		userProfilePanel.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(255, 255, 255, 40)),
-				new EmptyBorder(15, 15, 15, 15)));
-		userProfilePanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(userProfilePanel, BorderLayout.SOUTH);
-
-		JLabel lblPfp = new JLabel("", SwingConstants.CENTER);
-		lblPfp.setPreferredSize(new Dimension(40, 40));
-		URL pfpUrl = this.getClass().getResource("/Profile1.png");
-		if (pfpUrl != null) {
-			Image pfpImg = new ImageIcon(pfpUrl).getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-			lblPfp.setIcon(new ImageIcon(pfpImg));
-		} else {
-			lblPfp.setText("PFP");
-			lblPfp.setOpaque(true);
-			lblPfp.setBackground(Color.WHITE);
-			lblPfp.setForeground(DARK_TEAL);
-			lblPfp.setFont(new Font("Arial", Font.BOLD, 10));
-		}
-		GridBagConstraints gbc_lblPfp = new GridBagConstraints();
-		gbc_lblPfp.gridheight = 2;
-		gbc_lblPfp.insets = new Insets(0, 0, 0, 12);
-		gbc_lblPfp.gridx = 0;
-		gbc_lblPfp.gridy = 0;
-		userProfilePanel.add(lblPfp, gbc_lblPfp);
-
-		JLabel lblUsername = new JLabel(this.loggedInUser);
-		lblUsername.setForeground(Color.WHITE);
-		lblUsername.setFont(new Font("Arial", Font.BOLD, 15));
-		GridBagConstraints gbc_lblUsername = new GridBagConstraints();
-		gbc_lblUsername.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblUsername.weightx = 1.0;
-		gbc_lblUsername.insets = new Insets(0, 0, 2, 0);
-		gbc_lblUsername.gridx = 1;
-		gbc_lblUsername.gridy = 0;
-		userProfilePanel.add(lblUsername, gbc_lblUsername);
-
-		JLabel lblRole = new JLabel("System Administrator");
-		lblRole.setForeground(new Color(180, 200, 195));
-		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
-		GridBagConstraints gbc_lblRole = new GridBagConstraints();
-		gbc_lblRole.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblRole.weightx = 1.0;
-		gbc_lblRole.gridx = 1;
-		gbc_lblRole.gridy = 1;
-		userProfilePanel.add(lblRole, gbc_lblRole);
+		contentPane.add(Sidebar.build(this, loggedInUser, loggedInRole, Roles.NAV_COURSES), BorderLayout.WEST);
 
 		// =============================================================
 		// RIGHT MAIN CONTENT AREA
@@ -492,7 +357,7 @@ public class CoursesFrame extends JFrame {
 				if (viewRow < 0 || viewCol != ACTIONS_COL) return;
 
 				Rectangle cell = courseTable.getCellRect(viewRow, viewCol, false);
-				boolean addClicked = e.getX() < cell.x + cell.width / 2;
+				boolean addClicked = !canManageCourses || e.getX() < cell.x + cell.width / 2;
 				int modelRow = courseTable.convertRowIndexToModel(viewRow);
 				if (addClicked) {
 					addCourse(modelRow);
@@ -646,15 +511,6 @@ public class CoursesFrame extends JFrame {
 				active ? ACCENT_GREEN : new Color(220, 220, 220)));
 	}
 
-	/**
-	 * Shows the next frame (same position as this one) and closes this frame.
-	 */
-	private void openFrame(JFrame next) {
-		next.setBounds(getBounds());
-		next.setVisible(true);
-		dispose();
-	}
-
 	private static JButton makeActionButton(String text, Color bg) {
 		JButton b = new JButton(text);
 		b.setFont(new Font("Arial", Font.BOLD, 12));
@@ -698,10 +554,12 @@ public class CoursesFrame extends JFrame {
 		private final JButton btnDelete = makeActionButton("Delete", DELETE_RED);
 
 		ActionsRenderer() {
-			setLayout(new GridLayout(1, 2, 6, 0));
+			setLayout(new GridLayout(1, canManageCourses ? 2 : 1, 6, 0));
 			setBorder(new EmptyBorder(8, 8, 8, 8));
 			add(btnAdd);
-			add(btnDelete);
+			if (canManageCourses) {
+				add(btnDelete); // students can only add subjects, not delete them
+			}
 		}
 
 		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,

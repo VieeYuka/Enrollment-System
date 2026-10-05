@@ -2,6 +2,7 @@ package oopSource;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.EventQueue;
@@ -10,7 +11,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.RenderingHints;
@@ -19,9 +19,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,26 +30,37 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
+/**
+ * Student Management screen (admin / registrar).
+ *  - search by student ID or name (live)
+ *  - click a row -> StudentDetailDialog (Modify Info / Delete Record)
+ *  - "+ Add New Student" -> EnrollFrame
+ * Data comes from StudentService.
+ */
 public class StudentsFrame extends JFrame {
 
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
-	private String loggedInUser;
-	private String loggedInRole;
+	private final String loggedInUser;
+	private final String loggedInRole;
 	private DefaultTableModel studentTableModel;
+	private JTable studentTable;
+	private SearchField txtSearch;
 
-	// Dark Teal Theme Colors
+	// Dark Teal Theme Colors (NavItem below uses these too)
 	private static final Color DARK_TEAL = new Color(11, 55, 49);
 	private static final Color HOVER_TEAL = new Color(20, 80, 72);
 	private static final Color ACTIVE_NAV = new Color(40, 95, 87);
 	private static final Color LIGHT_BG = new Color(235, 235, 235);
 	private static final Color ACCENT_GREEN = new Color(38, 128, 98);
+
+	private static final int STATUS_COL = 6;
 
 	/**
 	 * Launch the application.
@@ -61,7 +69,8 @@ public class StudentsFrame extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					StudentsFrame frame = new StudentsFrame("Students","student");
+					Session.login("Admin", Roles.ADMIN);
+					StudentsFrame frame = new StudentsFrame("Admin", Roles.ADMIN);
 					frame.setLocationRelativeTo(null);
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -72,10 +81,10 @@ public class StudentsFrame extends JFrame {
 	}
 
 	/**
-	 * Default constructor
+	 * Default constructor (uses whoever is logged in)
 	 */
 	public StudentsFrame() {
-		this("Students","Student");
+		this(Session.username(), Session.role());
 	}
 
 	/**
@@ -93,174 +102,40 @@ public class StudentsFrame extends JFrame {
 		setContentPane(contentPane);
 		contentPane.setLayout(new BorderLayout(0, 0));
 
-		// =============================================================
-		// LEFT SIDEBAR
-		// =============================================================
-		JPanel sidebarPanel = new JPanel();
-		sidebarPanel.setBackground(DARK_TEAL);
-		sidebarPanel.setPreferredSize(new Dimension(280, 720));
-		sidebarPanel.setLayout(new BorderLayout(0, 0));
-		contentPane.add(sidebarPanel, BorderLayout.WEST);
+		contentPane.add(Sidebar.build(this, loggedInUser, loggedInRole, Roles.NAV_STUDENTS), BorderLayout.WEST);
 
-		// ---- Logo + Title ----
-		JPanel logoPanel = new JPanel();
-		logoPanel.setOpaque(false);
-		logoPanel.setBorder(new EmptyBorder(20, 15, 20, 15));
-		GridBagLayout gbl_logoPanel = new GridBagLayout();
-		logoPanel.setLayout(gbl_logoPanel);
-		sidebarPanel.add(logoPanel, BorderLayout.NORTH);
-
-		JLabel lblLogo = new JLabel("");
-		lblLogo.setHorizontalAlignment(SwingConstants.CENTER);
-		URL imgUrl = StudentsFrame.class.getResource("/RUlogo (1).png");
-		if (imgUrl != null) {
-			Image img = new ImageIcon(imgUrl).getImage().getScaledInstance(45, 45, Image.SCALE_SMOOTH);
-			lblLogo.setIcon(new ImageIcon(img));
-		} else {
-			lblLogo.setText("LOGO");
-			lblLogo.setFont(new Font("Arial", Font.BOLD, 10));
-			lblLogo.setForeground(DARK_TEAL);
-			lblLogo.setOpaque(true);
-			lblLogo.setBackground(Color.WHITE);
-			lblLogo.setPreferredSize(new Dimension(45, 45));
-		}
-		GridBagConstraints gbc_lblLogo = new GridBagConstraints();
-		gbc_lblLogo.insets = new Insets(0, 5, 0, 10);
-		gbc_lblLogo.gridx = 0;
-		gbc_lblLogo.gridy = 0;
-		logoPanel.add(lblLogo, gbc_lblLogo);
-
-		JLabel lblTitle = new JLabel("REY UNIVERSITY");
-		lblTitle.setForeground(Color.WHITE);
-		lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
-		GridBagConstraints gbc_lblTitle = new GridBagConstraints();
-		gbc_lblTitle.insets = new Insets(0, 5, 0, 10);
-		gbc_lblTitle.weightx = 1.0;
-		gbc_lblTitle.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblTitle.gridx = 1;
-		gbc_lblTitle.gridy = 0;
-		logoPanel.add(lblTitle, gbc_lblTitle);
-
-		// ---- Navigation ----
-		JPanel navContainer = new JPanel();
-		navContainer.setOpaque(false);
-		navContainer.setLayout(new GridLayout(8, 1, 0, 10));
-		navContainer.setBorder(new EmptyBorder(10, 15, 10, 15));
-		sidebarPanel.add(navContainer, BorderLayout.CENTER);
-
-		// Dashboard
-		NavItem navDashboard = new NavItem("Dashboard", false);
-		navDashboard.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new DashboardFrame(username, role));
-			}
-		});
-		navContainer.add(navDashboard);
-
-		// Students (current page - already active, so no action needed)
-		NavItem navStudents = new NavItem("Students", true);
-		navContainer.add(navStudents);
-
-		// Enrollment
-		NavItem navEnrollment = new NavItem("Enrollment", false);
-		navEnrollment.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new EnrollmentStudent());
-			}
-		});
-		navContainer.add(navEnrollment);
-
-		// Courses & Schedules
-		NavItem navCourses = new NavItem("Courses & Schedules", false);
-		navCourses.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new CoursesFrame());
-			}
-		});
-		navContainer.add(navCourses);
-
-		// Tuition & Payments
-		NavItem navTuition = new NavItem("Tuition & Payments", false);
-		navTuition.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				openFrame(new TuitionFrame());
-			}
-		});
-		navContainer.add(navTuition);
-
-		// ---- Bottom User Profile ----
-		JPanel userProfilePanel = new JPanel();
-		userProfilePanel.setOpaque(false);
-		userProfilePanel.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(255, 255, 255, 40)),
-				new EmptyBorder(15, 15, 15, 15)));
-		userProfilePanel.setLayout(new GridBagLayout());
-		sidebarPanel.add(userProfilePanel, BorderLayout.SOUTH);
-
-		JLabel lblPfp = new JLabel("", SwingConstants.CENTER);
-		lblPfp.setPreferredSize(new Dimension(40, 40));
-		lblPfp.setHorizontalAlignment(SwingConstants.CENTER);
-
-		URL pfpUrl = this.getClass().getResource("/Profile1.png");
-		if (pfpUrl != null) {
-			Image pfpImg = new ImageIcon(pfpUrl).getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-			lblPfp.setIcon(new ImageIcon(pfpImg));
-		} else {
-			lblPfp.setText("PFP");
-			lblPfp.setOpaque(true);
-			lblPfp.setBackground(Color.WHITE);
-			lblPfp.setForeground(DARK_TEAL);
-			lblPfp.setFont(new Font("Arial", Font.BOLD, 10));
-		}
-
-		GridBagConstraints gbc_lblPfp = new GridBagConstraints();
-		gbc_lblPfp.gridheight = 2;
-		gbc_lblPfp.insets = new Insets(0, 0, 0, 12);
-		gbc_lblPfp.gridx = 0;
-		gbc_lblPfp.gridy = 0;
-		userProfilePanel.add(lblPfp, gbc_lblPfp);
-
-		JLabel lblUsername = new JLabel(this.loggedInUser);
-		lblUsername.setForeground(Color.WHITE);
-		lblUsername.setFont(new Font("Arial", Font.BOLD, 15));
-		GridBagConstraints gbc_lblUsername = new GridBagConstraints();
-		gbc_lblUsername.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblUsername.weightx = 1.0;
-		gbc_lblUsername.insets = new Insets(0, 0, 2, 0);
-		gbc_lblUsername.gridx = 1;
-		gbc_lblUsername.gridy = 0;
-		userProfilePanel.add(lblUsername, gbc_lblUsername);
-
-		JLabel lblRole = new JLabel("System Administrator");
-		lblRole.setForeground(new Color(180, 200, 195));
-		lblRole.setFont(new Font("Arial", Font.PLAIN, 12));
-		GridBagConstraints gbc_lblRole = new GridBagConstraints();
-		gbc_lblRole.fill = GridBagConstraints.HORIZONTAL;
-		gbc_lblRole.weightx = 1.0;
-		gbc_lblRole.gridx = 1;
-		gbc_lblRole.gridy = 1;
-		userProfilePanel.add(lblRole, gbc_lblRole);
-
-		// =============================================================
-		// RIGHT MAIN CONTENT AREA
-		// =============================================================
 		JPanel mainContentPanel = new JPanel();
 		mainContentPanel.setBackground(LIGHT_BG);
 		mainContentPanel.setLayout(new BorderLayout(0, 0));
 		contentPane.add(mainContentPanel, BorderLayout.CENTER);
 
-		// ---- Top Welcome Bar ----
+		mainContentPanel.add(buildTopBar(), BorderLayout.NORTH);
+
+		// ---- Students Screen Body ----
+		JPanel studentsBody = new JPanel();
+		studentsBody.setOpaque(false);
+		studentsBody.setBorder(new EmptyBorder(25, 25, 25, 25));
+		studentsBody.setLayout(new BorderLayout(0, 20));
+		mainContentPanel.add(studentsBody, BorderLayout.CENTER);
+
+		studentsBody.add(buildHeaderToolBar(), BorderLayout.NORTH);
+		studentsBody.add(buildTableCard(), BorderLayout.CENTER);
+
+		loadTable();
+	}
+
+	// =================================================================
+	// LAYOUT
+	// =================================================================
+	private JPanel buildTopBar() {
 		JPanel topBar = new JPanel();
 		topBar.setBackground(Color.WHITE);
 		topBar.setPreferredSize(new Dimension(0, 70));
 		topBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(220, 220, 220)));
 		topBar.setLayout(new GridBagLayout());
-		mainContentPanel.add(topBar, BorderLayout.NORTH);
 
 		JLabel lblTopPfp = new JLabel("", SwingConstants.CENTER);
 		lblTopPfp.setPreferredSize(new Dimension(38, 38));
-		lblTopPfp.setHorizontalAlignment(SwingConstants.CENTER);
-
 		URL pfpUrl2 = this.getClass().getResource("/Profile2.png");
 		if (pfpUrl2 != null) {
 			Image topPfpImg = new ImageIcon(pfpUrl2).getImage().getScaledInstance(38, 38, Image.SCALE_SMOOTH);
@@ -272,7 +147,6 @@ public class StudentsFrame extends JFrame {
 			lblTopPfp.setForeground(Color.WHITE);
 			lblTopPfp.setFont(new Font("Arial", Font.BOLD, 10));
 		}
-
 		GridBagConstraints gbc_lblTopPfp = new GridBagConstraints();
 		gbc_lblTopPfp.insets = new Insets(0, 25, 0, 12);
 		gbc_lblTopPfp.gridx = 0;
@@ -287,19 +161,14 @@ public class StudentsFrame extends JFrame {
 		gbc_lblWelcomeMsg.gridx = 1;
 		gbc_lblWelcomeMsg.gridy = 0;
 		topBar.add(lblWelcomeMsg, gbc_lblWelcomeMsg);
+		return topBar;
+	}
 
-		// ---- Students Screen Body ----
-		JPanel studentsBody = new JPanel();
-		studentsBody.setOpaque(false);
-		studentsBody.setBorder(new EmptyBorder(25, 25, 25, 25));
-		studentsBody.setLayout(new BorderLayout(0, 20));
-		mainContentPanel.add(studentsBody, BorderLayout.CENTER);
-
-		// ---- Header & Action Toolbar ----
+	/** Title on the left, search box + "Add New Student" on the right. */
+	private JPanel buildHeaderToolBar() {
 		JPanel headerToolBar = new JPanel();
 		headerToolBar.setOpaque(false);
 		headerToolBar.setLayout(new BorderLayout(10, 0));
-		studentsBody.add(headerToolBar, BorderLayout.NORTH);
 
 		JLabel lblHeader = new JLabel("Student Management");
 		lblHeader.setFont(new Font("Arial", Font.BOLD, 26));
@@ -311,10 +180,12 @@ public class StudentsFrame extends JFrame {
 		actionPanel.setLayout(new GridBagLayout());
 		headerToolBar.add(actionPanel, BorderLayout.EAST);
 
-		JTextField txtSearch = new JTextField(" Search student ID or name...");
-		txtSearch.setFont(new Font("Arial", Font.PLAIN, 13));
-		txtSearch.setPreferredSize(new Dimension(240, 38));
-		txtSearch.setForeground(Color.GRAY);
+		// Live search: reloads the table on every keystroke
+		txtSearch = new SearchField("Search student ID or name...", 260, new Runnable() {
+			public void run() {
+				loadTable();
+			}
+		});
 		GridBagConstraints gbc_search = new GridBagConstraints();
 		gbc_search.insets = new Insets(0, 0, 0, 10);
 		gbc_search.gridx = 0;
@@ -329,29 +200,38 @@ public class StudentsFrame extends JFrame {
 		btnAddStudent.setCursor(new Cursor(Cursor.HAND_CURSOR));
 		btnAddStudent.setPreferredSize(new Dimension(170, 38));
 		btnAddStudent.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-		// Same destination as the "Enrollment" nav item
 		btnAddStudent.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				openFrame(new EnrollFrame());
+				Sidebar.navigate(StudentsFrame.this, new EnrollFrame());
 			}
 		});
 		GridBagConstraints gbc_btn = new GridBagConstraints();
 		gbc_btn.gridx = 1;
 		gbc_btn.gridy = 0;
 		actionPanel.add(btnAddStudent, gbc_btn);
+		return headerToolBar;
+	}
 
-		// ---- Main Table Card ----
+	private StudentsFrame.RoundedPanel buildTableCard() {
 		RoundedPanel tableCardPanel = new RoundedPanel(Color.WHITE, 20);
 		tableCardPanel.setLayout(new BorderLayout(0, 15));
 		tableCardPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
-		studentsBody.add(tableCardPanel, BorderLayout.CENTER);
+
+		JPanel cardHeader = new JPanel(new BorderLayout());
+		cardHeader.setOpaque(false);
+		tableCardPanel.add(cardHeader, BorderLayout.NORTH);
 
 		JLabel lblTableTitle = new JLabel("Enrollment Student Records");
 		lblTableTitle.setFont(new Font("Arial", Font.BOLD, 18));
 		lblTableTitle.setForeground(DARK_TEAL);
-		tableCardPanel.add(lblTableTitle, BorderLayout.NORTH);
+		cardHeader.add(lblTableTitle, BorderLayout.WEST);
 
-		String[] columns = {"Student ID", "First Name",  "Last Name", "University Email","Course", "Year Level", "Enrollment Status"};
+		JLabel lblHint = new JLabel("Click a student to view, modify or delete");
+		lblHint.setFont(new Font("Arial", Font.ITALIC, 12));
+		lblHint.setForeground(Color.GRAY);
+		cardHeader.add(lblHint, BorderLayout.EAST);
+
+		String[] columns = {"Student ID", "First Name", "Last Name", "University Email", "Course", "Year Level", "Enrollment Status"};
 		studentTableModel = new DefaultTableModel(columns, 0) {
 			private static final long serialVersionUID = 1L;
 
@@ -361,14 +241,12 @@ public class StudentsFrame extends JFrame {
 			}
 		};
 
-		// Placeholder data
-		studentTableModel.addRow(new Object[]{"2026-0002", "Maria", "Santos",  "bastaemail@haha","BSDVM", "Ayoko na", "Enrolled"});
-		studentTableModel.addRow(new Object[]{"2026-0002", "John", "Doe",  "bastaemail@haha","BSIT", "2nd Year", "Pending"});
-		
-
-		JTable studentTable = new JTable(studentTableModel);
+		studentTable = new JTable(studentTableModel);
 		studentTable.setFont(new Font("Arial", Font.PLAIN, 13));
 		studentTable.setRowHeight(35);
+		studentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		studentTable.setSelectionBackground(new Color(225, 242, 236));
+		studentTable.setSelectionForeground(Color.BLACK);
 		studentTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 13));
 		studentTable.getTableHeader().setBackground(new Color(240, 240, 240));
 		studentTable.getTableHeader().setForeground(DARK_TEAL);
@@ -378,41 +256,76 @@ public class StudentsFrame extends JFrame {
 
 		DefaultTableCellRenderer leftRenderer = new DefaultTableCellRenderer();
 		leftRenderer.setHorizontalAlignment(SwingConstants.LEFT);
-		for (int i = 0; i < studentTable.getColumnCount(); i++) {
+		for (int i = 0; i < studentTable.getColumnCount() - 1; i++) {
 			studentTable.getColumnModel().getColumn(i).setCellRenderer(leftRenderer);
 		}
+		studentTable.getColumnModel().getColumn(STATUS_COL).setCellRenderer(new StatusRenderer());
+
+		// Click a row -> open the info / modify / delete pop-up
+		studentTable.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				int row = studentTable.rowAtPoint(e.getPoint());
+				if (row < 0) return;
+				String id = String.valueOf(studentTableModel.getValueAt(row, 0));
+				StudentService.StudentRecord record = StudentService.findById(id);
+				if (record != null) {
+					openStudentDialog(record);
+				}
+			}
+		});
+		studentTable.addMouseMotionListener(new MouseAdapter() {
+			@Override
+			public void mouseMoved(MouseEvent e) {
+				boolean overRow = studentTable.rowAtPoint(e.getPoint()) >= 0;
+				studentTable.setCursor(overRow ? new Cursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
+			}
+		});
 
 		JScrollPane scrollPane = new JScrollPane(studentTable);
 		scrollPane.setBorder(BorderFactory.createEmptyBorder());
 		scrollPane.getViewport().setBackground(Color.WHITE);
 		tableCardPanel.add(scrollPane, BorderLayout.CENTER);
+		return tableCardPanel;
 	}
 
-	/**
-	 * Shows the next frame (same position as this one) and closes this frame.
-	 */
-	
-	private void loadManageStudentData(String searchQuery){
+	// =================================================================
+	// LOGIC
+	// =================================================================
+
+	/** Fills the table with the students that match the search box. */
+	private void loadTable() {
 		studentTableModel.setRowCount(0);
-		 String sql = "SELECT * FROM students WHERE student_id LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR course LIKE ? ORDER BY id DESC";
-	
-	
-		 try(Connection conn = DBConnection.getConnection();
-			 PreparedStatement pst = conn.prepareStatement(sql)){
-	
-		 }catch(SQLException e){
-		
-		 }
-	}
-	private void openFrame(JFrame next) {
-		next.setBounds(getBounds());
-		next.setVisible(true);
-		dispose();
+		List<StudentService.StudentRecord> students = StudentService.search(txtSearch.getQuery());
+		for (StudentService.StudentRecord s : students) {
+			studentTableModel.addRow(new Object[] {
+					s.studentId, s.firstName, s.lastName, s.email, s.course, s.yearLevel, s.status });
+		}
 	}
 
-	/** Add student records dynamically (e.g. from MySQL). */
-	public void addStudentRecord(String studentId, String name, String course, String yearLevel, String status, String date) {
-		studentTableModel.addRow(new Object[]{studentId, name, course, yearLevel, status, date});
+	private void openStudentDialog(StudentService.StudentRecord record) {
+		StudentDetailDialog dialog = new StudentDetailDialog(this, record, new Runnable() {
+			public void run() {
+				loadTable(); // refresh after modify / delete
+			}
+		});
+		dialog.setVisible(true);
+	}
+
+	/** Colors "Enrolled" green and "Pending" amber. */
+	private static class StatusRenderer extends DefaultTableCellRenderer {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+				boolean hasFocus, int row, int column) {
+			super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+			boolean enrolled = EnrollmentService.ENROLLED.equals(String.valueOf(value));
+			setHorizontalAlignment(SwingConstants.LEFT);
+			setFont(new Font("Arial", Font.BOLD, 13));
+			setForeground(enrolled ? TuitionFrame.PAID_GREEN : new Color(156, 101, 0));
+			return this;
+		}
 	}
 
 	// =================================================================

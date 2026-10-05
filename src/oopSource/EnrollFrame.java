@@ -38,6 +38,9 @@ public class EnrollFrame extends JFrame {
 	// The frame we came from (shown again when this form is closed)
 	private JFrame previousFrame;
 
+	// true = person enrolling WITHOUT an account (login screen -> "Enroll now")
+	private final boolean applicantMode;
+
 	private JTextField txtFirstName;
 	private JTextField txtMiddleName;
 	private JTextField txtLastName;
@@ -74,7 +77,7 @@ public class EnrollFrame extends JFrame {
 	 * Default constructor (no previous frame given -> returns to StudentsFrame).
 	 */
 	public EnrollFrame() {
-		this(null);
+		this(null, false);
 	}
 
 	/**
@@ -82,9 +85,19 @@ public class EnrollFrame extends JFrame {
 	 * @param previous the frame to show again when this form is closed
 	 */
 	public EnrollFrame(JFrame previous) {
-		this.previousFrame = previous;
+		this(previous, false);
+	}
 
-		setTitle("Rey University - Add New Student");
+	/**
+	 * @param previous      the frame to show again when this form is closed (null = default)
+	 * @param applicantMode true when a person without an account fills this in:
+	 *                      Save continues to the course list, Cancel returns to the login screen
+	 */
+	public EnrollFrame(JFrame previous, boolean applicantMode) {
+		this.previousFrame = previous;
+		this.applicantMode = applicantMode;
+
+		setTitle(applicantMode ? "Rey University - Enrollment Form" : "Rey University - Add New Student");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1280, 720);
 
@@ -114,7 +127,7 @@ public class EnrollFrame extends JFrame {
 		headerPanel.setLayout(new BorderLayout(0, 0));
 		cardPanel.add(headerPanel, BorderLayout.NORTH);
 
-		JLabel lblFormTitle = new JLabel("Add New Student");
+		JLabel lblFormTitle = new JLabel(applicantMode ? "Enrollment Form" : "Add New Student");
 		lblFormTitle.setFont(new Font("Arial", Font.BOLD, 22));
 		lblFormTitle.setForeground(DARK_TEAL);
 		headerPanel.add(lblFormTitle, BorderLayout.WEST);
@@ -280,7 +293,7 @@ public class EnrollFrame extends JFrame {
 		pnlYearCourse.add(lblCourse, gbc_lblCourse);
 
 		cmbYearLevel = new JComboBox<String>();
-		cmbYearLevel.setModel(new DefaultComboBoxModel<String>(new String[] {"1st Year", "2nd Year", "3rd Year", "4th Year"}));
+		cmbYearLevel.setModel(new DefaultComboBoxModel<String>(StudentService.YEAR_LEVELS));
 		cmbYearLevel.setFont(new Font("Arial", Font.PLAIN, 14));
 		cmbYearLevel.setBackground(Color.WHITE);
 		cmbYearLevel.setPreferredSize(new Dimension(140, 42));
@@ -293,7 +306,7 @@ public class EnrollFrame extends JFrame {
 		pnlYearCourse.add(cmbYearLevel, gbc_cmbYearLevel);
 
 		cmbCourse = new JComboBox<String>();
-		cmbCourse.setModel(new DefaultComboBoxModel<String>(new String[] {"BSCS", "BSIT", "BSIS", "BSEd", "BSBA"}));
+		cmbCourse.setModel(new DefaultComboBoxModel<String>(StudentService.COURSES));
 		cmbCourse.setFont(new Font("Arial", Font.PLAIN, 14));
 		cmbCourse.setBackground(Color.WHITE);
 		cmbCourse.setPreferredSize(new Dimension(150, 42));
@@ -386,7 +399,7 @@ public class EnrollFrame extends JFrame {
 	private void goBack() {
 		JFrame target = previousFrame;
 		if (target == null) {
-			target = new StudentsFrame();
+			target = applicantMode ? new FinalFrameOOP() : new StudentsFrame();
 		}
 		target.setBounds(getBounds());
 		target.setVisible(true);
@@ -419,10 +432,25 @@ public class EnrollFrame extends JFrame {
 			return;
 		}
 
-		// TODO: insert firstName, middleName, lastName, email, address, gender, yearLevel, course into MySQL here.
+		if (StudentService.emailExists(email)) {
+			JOptionPane.showMessageDialog(this, "A student with this email is already registered.",
+					"Duplicate Email", JOptionPane.WARNING_MESSAGE);
+			return;
+		}
 
-		JOptionPane.showMessageDialog(this, "Student saved:\n" + firstName + " " + middleName + " " + lastName
-				+ "\nEmail: " + email + "\nAddress: " + address + "\n" + gender + " | " + yearLevel + " - " + course, 
+		// TODO (database): middleName, gender and address have no column in "students" yet.
+		StudentService.StudentRecord saved = StudentService.add(firstName, lastName, email, course, yearLevel);
+		ActivityLOg.log(ActivityLOg.Type.STUDENT, saved.fullName() + " was added as a new student");
+
+		if (applicantMode) {
+			// No-account flow: continue to the course list (the only menu item an applicant sees)
+			Session.startApplicant(saved.studentId, saved.fullName(), course, yearLevel);
+			Sidebar.navigate(this, new CoursesFrame(saved.fullName(), Roles.APPLICANT));
+			return;
+		}
+
+		JOptionPane.showMessageDialog(this, "Student saved:\n" + saved.fullName() + "\nID: " + saved.studentId
+				+ "\nEmail: " + email + "\n" + gender + " | " + yearLevel + " - " + course,
 				"Saved", JOptionPane.INFORMATION_MESSAGE);
 		goBack();
 	}

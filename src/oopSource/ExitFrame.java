@@ -1,107 +1,188 @@
 package oopSource;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import javax.swing.*;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 
+/**
+ * Last screen of the enrollment flow:  "Thank you for using the system"
+ * plus the student's enrollment status (Pending or Enrolled).
+ *
+ * The status badge refreshes itself every few seconds from EnrollmentService,
+ * so when the cashier confirms the payment it flips from Pending to Enrolled.
+ * It can also be changed from code:  exitFrame.setEnrollmentStatus("Enrolled");
+ *
+ * Same look as the login screen (dark teal left panel, grey right panel).
+ */
 public class ExitFrame extends JFrame {
 
-    private static final long serialVersionUID = 1L;
-    private JPanel contentPane;
-    private JLabel lblStatusBadge;
+	private static final long serialVersionUID = 1L;
 
-    private static final Color DARK_TEAL = new Color(11, 55, 49);
-    private static final Color LIGHT_BG = new Color(235, 235, 235);
-    private static final Color PENDING_ORANGE = new Color(211, 84, 0);
-    private static final Color ENROLLED_GREEN = new Color(39, 174, 96);
+	private static final Color DARK_TEAL = new Color(11, 55, 49);
+	private static final Color LIGHT_BG = new Color(235, 235, 235);
+	private static final Color PENDING_FG = new Color(156, 101, 0);
+	private static final Color PENDING_BG = new Color(255, 243, 205);
+	private static final int REFRESH_MS = 5000;
 
-    public ExitFrame(String studentName, String enrollmentStatus) {
-        setTitle("Rey University - Enrollment Submitted");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setBounds(100, 100, 800, 500);
-        setLocationRelativeTo(null);
+	private final String studentKey;
+	private final JLabel lblStatus = new JLabel("", SwingConstants.CENTER);
+	private final Timer refreshTimer;
 
-        contentPane = new JPanel(new BorderLayout());
-        contentPane.setBackground(LIGHT_BG);
-        setContentPane(contentPane);
+	/** @param studentKey the id used by EnrollmentService (Session.studentKey()) */
+	public ExitFrame(String studentKey) {
+		this.studentKey = studentKey;
 
-        // Top Header
-        JPanel topBar = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        topBar.setBackground(DARK_TEAL);
-        topBar.setPreferredSize(new Dimension(0, 70));
+		setTitle("Rey University - Thank You");
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setBounds(100, 100, 1280, 720);
 
-        JLabel lblUni = new JLabel("REY UNIVERSITY ENROLLMENT SYSTEM");
-        lblUni.setForeground(Color.WHITE);
-        lblUni.setFont(new Font("Arial", Font.BOLD, 18));
-        topBar.add(lblUni);
-        contentPane.add(topBar, BorderLayout.NORTH);
+		JPanel contentPane = new JPanel(new GridBagLayout());
+		setContentPane(contentPane);
 
-        // Center Card
-        JPanel centerWrapper = new JPanel(new GridBagLayout());
-        centerWrapper.setOpaque(false);
-        contentPane.add(centerWrapper, BorderLayout.CENTER);
+		contentPane.add(buildLeftPanel(), panelConstraints(0, 0.35));
+		contentPane.add(buildRightPanel(), panelConstraints(1, 0.65));
 
-        StudentsFrame.RoundedPanel card = new StudentsFrame.RoundedPanel(Color.WHITE, 25);
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBorder(new EmptyBorder(30, 40, 30, 40));
+		refreshStatus();
+		refreshTimer = new Timer(REFRESH_MS, new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				refreshStatus();
+			}
+		});
+		refreshTimer.start();
+	}
 
-        JLabel lblThankYou = new JLabel("Thank you for using the system!");
-        lblThankYou.setAlignmentX(Component.CENTER_ALIGNMENT);
-        lblThankYou.setFont(new Font("Arial", Font.BOLD, 22));
-        lblThankYou.setForeground(DARK_TEAL);
+	private GridBagConstraints panelConstraints(int column, double weight) {
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.fill = GridBagConstraints.BOTH;
+		gbc.gridx = column;
+		gbc.gridy = 0;
+		gbc.weightx = weight;
+		gbc.weighty = 1.0;
+		return gbc;
+	}
 
-        JLabel lblMessage = new JLabel("Your enrollment application has been successfully recorded.");
-        lblMessage.setAlignmentX(Component.CENTER_ALIGNMENT);
-        lblMessage.setFont(new Font("Arial", Font.PLAIN, 14));
-        lblMessage.setForeground(Color.GRAY);
+	// ---- left: logo + university name (same as the login screen) ----
+	private JPanel buildLeftPanel() {
+		JPanel left = new JPanel(new GridBagLayout());
+		left.setBackground(DARK_TEAL);
 
-        JLabel lblStatusTitle = new JLabel("Current Enrollment Status:");
-        lblStatusTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        lblStatusTitle.setFont(new Font("Arial", Font.BOLD, 14));
+		GridBagConstraints gbcLogo = new GridBagConstraints();
+		gbcLogo.gridx = 0;
+		gbcLogo.gridy = 0;
+		gbcLogo.insets = new Insets(10, 20, 10, 20);
+		left.add(Sidebar.createLogo(150), gbcLogo);
 
-        lblStatusBadge = new JLabel(enrollmentStatus.toUpperCase());
-        lblStatusBadge.setAlignmentX(Component.CENTER_ALIGNMENT);
-        lblStatusBadge.setFont(new Font("Arial", Font.BOLD, 16));
-        lblStatusBadge.setOpaque(true);
-        updateStatusBadge(enrollmentStatus);
+		JLabel lblTitle = new JLabel("REY UNIVERSITY", SwingConstants.CENTER);
+		lblTitle.setForeground(Color.WHITE);
+		lblTitle.setFont(new Font("Arial", Font.BOLD, 28));
+		GridBagConstraints gbcTitle = new GridBagConstraints();
+		gbcTitle.gridx = 0;
+		gbcTitle.gridy = 1;
+		gbcTitle.insets = new Insets(30, 20, 5, 20);
+		left.add(lblTitle, gbcTitle);
 
-        JButton btnClose = new JButton("Close System");
-        btnClose.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnClose.setFont(new Font("Arial", Font.BOLD, 14));
-        btnClose.setBackground(DARK_TEAL);
-        btnClose.setForeground(Color.WHITE);
-        btnClose.setFocusPainted(false);
-        btnClose.setPreferredSize(new Dimension(160, 40));
-        btnClose.setMaximumSize(new Dimension(160, 40));
-        btnClose.addActionListener(e -> System.exit(0));
+		JLabel lblSubtitle = new JLabel("ENROLLMENT SYSTEM", SwingConstants.CENTER);
+		lblSubtitle.setForeground(new Color(200, 220, 215));
+		lblSubtitle.setFont(new Font("Arial", Font.PLAIN, 16));
+		GridBagConstraints gbcSub = new GridBagConstraints();
+		gbcSub.gridx = 0;
+		gbcSub.gridy = 2;
+		gbcSub.insets = new Insets(0, 20, 50, 20);
+		left.add(lblSubtitle, gbcSub);
+		return left;
+	}
 
-        card.add(lblThankYou);
-        card.add(Box.createVerticalStrut(10));
-        card.add(lblMessage);
-        card.add(Box.createVerticalStrut(25));
-        card.add(lblStatusTitle);
-        card.add(Box.createVerticalStrut(8));
-        card.add(lblStatusBadge);
-        card.add(Box.createVerticalStrut(30));
-        card.add(btnClose);
+	// ---- right: thank you + enrollment status + exit ----
+	private JPanel buildRightPanel() {
+		JPanel right = new JPanel(new GridBagLayout());
+		right.setBackground(LIGHT_BG);
 
-        centerWrapper.add(card);
-    }
+		JLabel lblThanks = new JLabel("Thank you for using the system!", SwingConstants.CENTER);
+		lblThanks.setFont(new Font("Arial", Font.BOLD, 32));
+		lblThanks.setForeground(DARK_TEAL);
+		GridBagConstraints gbcThanks = new GridBagConstraints();
+		gbcThanks.gridx = 0;
+		gbcThanks.gridy = 0;
+		gbcThanks.insets = new Insets(0, 40, 40, 40);
+		right.add(lblThanks, gbcThanks);
 
-    /** Placeholder database helper method to update status badge styling */
-    public void updateStatusBadge(String status) {
-        if ("Enrolled".equalsIgnoreCase(status)) {
-            lblStatusBadge.setText(" ENROLLED ");
-            lblStatusBadge.setBackground(new Color(223, 245, 232));
-            lblStatusBadge.setForeground(ENROLLED_GREEN);
-            lblStatusBadge.setBorder(BorderFactory.createLineBorder(ENROLLED_GREEN, 1));
-        } else {
-            lblStatusBadge.setText(" PENDING ");
-            lblStatusBadge.setBackground(new Color(253, 235, 208));
-            lblStatusBadge.setForeground(PENDING_ORANGE);
-            lblStatusBadge.setBorder(BorderFactory.createLineBorder(PENDING_ORANGE, 1));
-        }
-    }
+		JLabel lblCaption = new JLabel("Enrollment Status", SwingConstants.CENTER);
+		lblCaption.setFont(new Font("Arial", Font.PLAIN, 16));
+		lblCaption.setForeground(Color.GRAY);
+		GridBagConstraints gbcCaption = new GridBagConstraints();
+		gbcCaption.gridx = 0;
+		gbcCaption.gridy = 1;
+		gbcCaption.insets = new Insets(0, 0, 10, 0);
+		right.add(lblCaption, gbcCaption);
+
+		lblStatus.setOpaque(true);
+		lblStatus.setFont(new Font("Arial", Font.BOLD, 24));
+		lblStatus.setPreferredSize(new Dimension(220, 60));
+		GridBagConstraints gbcStatus = new GridBagConstraints();
+		gbcStatus.gridx = 0;
+		gbcStatus.gridy = 2;
+		gbcStatus.insets = new Insets(0, 0, 50, 0);
+		right.add(lblStatus, gbcStatus);
+
+		JButton btnExit = new JButton("Exit System");
+		btnExit.setFont(new Font("Arial", Font.BOLD, 16));
+		btnExit.setBackground(DARK_TEAL);
+		btnExit.setForeground(Color.WHITE);
+		btnExit.setFocusPainted(false);
+		btnExit.setCursor(new Cursor(Cursor.HAND_CURSOR));
+		btnExit.setPreferredSize(new Dimension(220, 45));
+		btnExit.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				System.exit(0);
+			}
+		});
+		GridBagConstraints gbcExit = new GridBagConstraints();
+		gbcExit.gridx = 0;
+		gbcExit.gridy = 3;
+		right.add(btnExit, gbcExit);
+		return right;
+	}
+
+	// =================================================================
+	// STATUS
+	// =================================================================
+
+	/** Reads the current status from the database layer and shows it. */
+	private void refreshStatus() {
+		setEnrollmentStatus(EnrollmentService.getStatus(studentKey));
+	}
+
+	/** Shows "Enrolled" (green) or anything else as "Pending" (amber). */
+	public void setEnrollmentStatus(String status) {
+		boolean enrolled = EnrollmentService.ENROLLED.equalsIgnoreCase(status);
+		Color fg = enrolled ? TuitionFrame.PAID_GREEN : PENDING_FG;
+		Color bg = enrolled ? TuitionFrame.PAID_BG : PENDING_BG;
+
+		lblStatus.setText(enrolled ? EnrollmentService.ENROLLED : EnrollmentService.PENDING);
+		lblStatus.setForeground(fg);
+		lblStatus.setBackground(bg);
+		lblStatus.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(fg, 2), new EmptyBorder(6, 24, 6, 24)));
+	}
+
+	@Override
+	public void dispose() {
+		refreshTimer.stop();
+		super.dispose();
+	}
 }
