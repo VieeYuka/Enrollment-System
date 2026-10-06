@@ -296,7 +296,7 @@ public class StudentsFrame extends JFrame {
 	/** Fills the table with the students that match the search box. */
 	private void loadTable() {
 		studentTableModel.setRowCount(0);
-		List<StudentService.StudentRecord> students = StudentService.search(txtSearch.getQuery());
+		List<StudentService.StudentRecord> students = StudentService.search(txtSearch.getQuery(), EnrollmentService.ENROLLED);
 		for (StudentService.StudentRecord s : students) {
 			studentTableModel.addRow(new Object[] {
 					s.studentId, s.firstName, s.lastName, s.email, s.course, s.yearLevel, s.status });

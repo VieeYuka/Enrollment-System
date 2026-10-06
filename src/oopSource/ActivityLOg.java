@@ -39,7 +39,6 @@ public final class ActivityLOg {
 			this.time = time;
 		}
 
-		/** "just now", "5 min ago", "3 hr ago", "2 days ago" */
 		public String timeAgo() {
 			long minutes = (System.currentTimeMillis() - time.getTime()) / 60000;
 			if (minutes < 1) return "just now";
@@ -68,7 +67,7 @@ public final class ActivityLOg {
 
 	/** Records something that just happened. */
 	public static void log(Type type, String message) {
-		// TODO (database): INSERT INTO activity_log ...
+		// TODO (database): INSERT INTO activity_lOg ...
 		ENTRIES.addFirst(new Entry(type, message, new Date()));
 		while (ENTRIES.size() > MAX_KEPT) {
 			ENTRIES.removeLast();

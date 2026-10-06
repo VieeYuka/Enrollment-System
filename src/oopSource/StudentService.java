@@ -71,9 +71,13 @@ public final class StudentService {
 
 	private StudentService() {
 	}
+	
+	public static List<StudentRecord> search(String query) {
+		return search(query, null);
+	}
 
 	/** Matches student ID or name (first, last, or both in any order). Empty query = everyone. */
-	public static List<StudentRecord> search(String query) {
+	public static List<StudentRecord> search(String query, String status) {
 		// TODO (database): run the SELECT in the header comment
 		List<StudentRecord> result = new ArrayList<StudentRecord>();
 		for (StudentRecord s : STUDENTS) {
@@ -147,6 +151,7 @@ public final class StudentService {
 	}
 
 	private static String nextStudentNumber() {
+
 		int max = 0;
 		for (StudentRecord s : STUDENTS) {
 			try {

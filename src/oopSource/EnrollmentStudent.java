@@ -309,7 +309,7 @@ public class EnrollmentStudent extends JFrame {
 	private void loadTable() {
 		tableModel.setRowCount(0);
 		String status = String.valueOf(cmbStatus.getSelectedItem());
-		for (EnrollmentService.Enrollment e : EnrollmentService.search(txtSearch.getQuery(), status)) {
+		for (EnrollmentService.Enrollment e : EnrollmentService.search(txtSearch.getQuery(), EnrollmentService.PENDING)) {
 			tableModel.addRow(new Object[] {
 					e.studentKey, e.name, e.course, e.yearLevel, e.units, e.status, "" });
 		}
