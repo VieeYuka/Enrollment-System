@@ -60,6 +60,7 @@ public class CoursesFrame extends JFrame {
 	private TableRowSorter<DefaultTableModel> sorter;
 	private JTextField txtSearch;
 	private JComboBox<String> cmbDepartment;
+	private JLabel lblEnrollInfo;
 
 	// Course codes the user pressed "Add" on (these get enrolled)
 	private final Set<String> selectedCodes = new HashSet<String>();
@@ -185,7 +186,15 @@ public class CoursesFrame extends JFrame {
 		JLabel lblHeader = new JLabel("Subjects & Schedules");
 		lblHeader.setFont(new Font("Arial", Font.BOLD, 26));
 		lblHeader.setForeground(DARK_TEAL);
-		headerPanel.add(lblHeader, BorderLayout.NORTH);
+		lblEnrollInfo = new JLabel(" ");
+		lblEnrollInfo.setFont(new Font("Arial", Font.PLAIN, 13));
+		lblEnrollInfo.setForeground(new Color(80, 100, 95));
+		JPanel titleBlock = new JPanel(new BorderLayout(0, 4));
+		titleBlock.setOpaque(false);
+		titleBlock.add(lblHeader, BorderLayout.NORTH);
+		titleBlock.add(lblEnrollInfo, BorderLayout.SOUTH);
+		headerPanel.add(titleBlock, BorderLayout.NORTH);
+		updateEnrollInfo();
 
 		JPanel tabsPanel = new JPanel();
 		tabsPanel.setOpaque(false);
@@ -307,19 +316,9 @@ public class CoursesFrame extends JFrame {
 			}
 		};
 
-		// Placeholder data
-		addCourseRow("CCS101", "Introduction to Computing", 3, "CS");
-		addCourseRow("IT102", "Web Development", 3, "IT");
-		addCourseRow("MATH101", "College Algebra", 3, "Math");
-		addCourseRow("ENG101", "English for Academic Purposes", 3, "English");
-		addCourseRow("PE101", "Physical Education", 2, "PE");
-		addCourseRow("CCS102", "Computer Programming 1", 3, "CS");
-		addCourseRow("IT103", "Networking Fundamentals", 3, "IT");
-		addCourseRow("MATH102", "Trigonometry", 3, "Math");
-		addCourseRow("ENG102", "Purposive Communication", 3, "English");
-		addCourseRow("PE102", "Physical Education 2", 2, "PE");
-		addCourseRow("CCS103", "Discrete Mathematics", 3, "CS");
-		addCourseRow("IT104", "Database Management", 3, "IT");
+		for (Object[] row : SubjectService.all()) {
+			addCourseRow(String.valueOf(row[0]), String.valueOf(row[1]), (Integer) row[2], String.valueOf(row[3]));
+		}
 
 		courseTable = new JTable(courseTableModel);
 		courseTable.setFont(new Font("Arial", Font.PLAIN, 13));
@@ -401,12 +400,9 @@ public class CoursesFrame extends JFrame {
 				return false;
 			}
 		};
-		// Placeholder data
-		model.addRow(new Object[] {"CCS101", "Mon / Wed", "8:00 - 9:30 AM", "Room 101"});
-		model.addRow(new Object[] {"IT102", "Tue / Thu", "10:00 - 11:30 AM", "Lab 2"});
-		model.addRow(new Object[] {"MATH101", "Mon / Wed", "1:00 - 2:30 PM", "Room 204"});
-		model.addRow(new Object[] {"ENG101", "Tue / Thu", "1:00 - 2:30 PM", "Room 110"});
-		model.addRow(new Object[] {"PE101", "Fri", "8:00 - 10:00 AM", "Gym"});
+		for (Object[] row : SubjectService.schedules()) {
+			model.addRow(row);
+		}
 
 		JTable table = new JTable(model);
 		table.setFont(new Font("Arial", Font.PLAIN, 13));
@@ -432,10 +428,100 @@ public class CoursesFrame extends JFrame {
 		courseTableModel.addRow(new Object[] {code, title, units, dept, ""});
 	}
 
-	/** Add button: marks the course to be included in the enrollment. */
+	/** Units of every subject currently marked with "Add". */
+	private int selectedUnits() {
+		int total = 0;
+		if (courseTableModel == null) {
+			return 0; // table not built yet
+		}
+		for (int i = 0; i < courseTableModel.getRowCount(); i++) {
+			if (selectedCodes.contains(String.valueOf(courseTableModel.getValueAt(i, 0)))) {
+				total += Integer.parseInt(String.valueOf(courseTableModel.getValueAt(i, 2)));
+			}
+		}
+		return total;
+	}
+
+	/** Can the subjects NOT yet added still add up to exactly 'need' units? (need = 0 -> yes) */
+	private boolean canReachExactly(int need) {
+		if (need < 0) {
+			return false;
+		}
+		boolean[] reach = new boolean[need + 1];
+		reach[0] = true;
+		for (int i = 0; i < courseTableModel.getRowCount(); i++) {
+			if (selectedCodes.contains(String.valueOf(courseTableModel.getValueAt(i, 0)))) {
+				continue;
+			}
+			int u = Integer.parseInt(String.valueOf(courseTableModel.getValueAt(i, 2)));
+			for (int t = need; t >= u; t--) {
+				if (reach[t - u]) {
+					reach[t] = true;
+				}
+			}
+		}
+		return reach[need];
+	}
+
+	/** "Enrolling: Maria Santos (2026-0003) - BSIT   |   Units: 6 / 19" */
+	private void updateEnrollInfo() {
+		if (lblEnrollInfo == null) {
+			return;
+		}
+		if (!Session.hasEnrollTarget()) {
+			lblEnrollInfo.setText("To enroll subjects, add a new student first (Students > + Add New Student).");
+			return;
+		}
+		int limit = SubjectService.unitLimit(Session.course());
+		lblEnrollInfo.setText("Enrolling: " + Session.fullName() + " (" + Session.studentKey() + ") - "
+				+ Session.course() + "     |     Units: " + selectedUnits()
+				+ (limit > 0 ? " / " + limit : ""));
+	}
+
+	/** Add button: marks the course to be included in the enrollment (within the program's unit limit). */
 	private void addCourse(int modelRow) {
 		String code = String.valueOf(courseTableModel.getValueAt(modelRow, 0));
+
+		if (!Session.hasEnrollTarget()) {
+			JOptionPane.showMessageDialog(this,
+					"There is no student to enroll yet.\nAdd a new student first (Students > + Add New Student).",
+					"No Student Selected", JOptionPane.INFORMATION_MESSAGE);
+			return;
+		}
+
+		// Clicking an added subject removes it again
+		if (selectedCodes.contains(code)) {
+			selectedCodes.remove(code);
+			updateEnrollInfo();
+			courseTable.repaint();
+			return;
+		}
+
+		int units = Integer.parseInt(String.valueOf(courseTableModel.getValueAt(modelRow, 2)));
+		int limit = SubjectService.unitLimit(Session.course());
+		if (limit > 0) {
+			int after = selectedUnits() + units;
+			if (after > limit) {
+				JOptionPane.showMessageDialog(this,
+						"The " + Session.course() + " program requires exactly " + limit + " units.\n"
+								+ "You already have " + selectedUnits() + " units; adding " + code + " (" + units
+								+ " units) would go over.",
+						"Unit Limit Reached", JOptionPane.WARNING_MESSAGE);
+				return;
+			}
+			selectedCodes.add(code);
+			if (!canReachExactly(limit - after)) {
+				selectedCodes.remove(code);
+				JOptionPane.showMessageDialog(this,
+						"Adding " + code + " would make it impossible to reach exactly " + limit + " units\n"
+								+ "with the remaining subjects. Choose a different subject.",
+						"Cannot Reach " + limit + " Units", JOptionPane.WARNING_MESSAGE);
+				return;
+			}
+			selectedCodes.remove(code);
+		}
 		selectedCodes.add(code);
+		updateEnrollInfo();
 		courseTable.repaint();
 	}
 
@@ -447,9 +533,11 @@ public class CoursesFrame extends JFrame {
 				"Delete " + code + " - " + title + "?", "Delete Course",
 				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 		if (choice == JOptionPane.YES_OPTION) {
-			selectedCodes.remove(code);
-			courseTableModel.removeRow(modelRow);
-			// TODO: also delete from MySQL
+			if (SubjectService.delete(code)) {
+				selectedCodes.remove(code);
+				courseTableModel.removeRow(modelRow);
+				updateEnrollInfo();
+			}
 		}
 	}
 
@@ -472,6 +560,16 @@ public class CoursesFrame extends JFrame {
 			JOptionPane.showMessageDialog(this,
 					"Please press \"Add\" on at least one course first.",
 					"No subjects selected", JOptionPane.INFORMATION_MESSAGE);
+			return;
+		}
+
+		int limit = SubjectService.unitLimit(Session.course());
+		if (limit > 0 && selectedUnits() != limit) {
+			JOptionPane.showMessageDialog(this,
+					"The " + Session.course() + " program requires exactly " + limit + " units.\n"
+							+ "Your subjects total " + selectedUnits() + " units - "
+							+ (selectedUnits() < limit ? "add " : "remove ") + Math.abs(limit - selectedUnits()) + " more.",
+					"Units Must Match", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 
@@ -566,7 +664,7 @@ public class CoursesFrame extends JFrame {
 				boolean hasFocus, int row, int column) {
 			String code = String.valueOf(table.getValueAt(row, 0));
 			boolean added = selectedCodes.contains(code);
-			btnAdd.setText(added ? "Added" : "Add");
+			btnAdd.setText(added ? "Remove" : "Add");
 			btnAdd.setBackground(added ? ADDED_GRAY : ACCENT_GREEN);
 			setBackground(added ? SELECTED_ROW : Color.WHITE);
 			return this;

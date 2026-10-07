@@ -244,11 +244,13 @@ public class StudentDetailDialog extends JDialog {
 	/** Locks / unlocks the fields and renames the buttons to match. */
 	private void setEditing(boolean on) {
 		editing = on;
-		JTextField[] texts = {txtFirstName, txtLastName, txtEmail};
+		JTextField[] texts = {txtFirstName, txtLastName}; // university email is generated, never typed
 		for (JTextField t : texts) {
 			t.setEditable(on);
 			t.setBackground(on ? Color.WHITE : LOCKED_BG);
 		}
+		txtEmail.setEditable(false);
+		txtEmail.setBackground(LOCKED_BG);
 		cmbCourse.setEnabled(on);
 		cmbYearLevel.setEnabled(on);
 		cmbStatus.setEnabled(on);
@@ -259,32 +261,22 @@ public class StudentDetailDialog extends JDialog {
 	private void saveChanges() {
 		String first = txtFirstName.getText().trim();
 		String last = txtLastName.getText().trim();
-		String email = txtEmail.getText().trim();
 
-		if (first.isEmpty() || last.isEmpty() || email.isEmpty()) {
-			JOptionPane.showMessageDialog(this, "First name, last name and email are required.",
+		if (first.isEmpty() || last.isEmpty()) {
+			JOptionPane.showMessageDialog(this, "First name and last name are required.",
 					"Missing Information", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
-		if (!email.contains("@")) {
-			JOptionPane.showMessageDialog(this, "Please enter a valid email address.",
-					"Invalid Email", JOptionPane.WARNING_MESSAGE);
-			return;
-		}
-		if (!email.equalsIgnoreCase(record.email) && StudentService.emailExists(email)) {
-			JOptionPane.showMessageDialog(this, "That email is already used by another student.",
-					"Duplicate Email", JOptionPane.WARNING_MESSAGE);
-			return;
-		}
-
 		StudentService.StudentRecord edited = record.copy();
 		edited.firstName = first;
 		edited.lastName = last;
-		edited.email = email;
+		edited.email = StudentService.univEmail(last, first, record.studentId);
 		edited.course = String.valueOf(cmbCourse.getSelectedItem());
 		edited.yearLevel = String.valueOf(cmbYearLevel.getSelectedItem());
 		edited.status = String.valueOf(cmbStatus.getSelectedItem());
-		StudentService.update(edited);
+		if (!StudentService.update(edited)) {
+			return;
+		}
 
 		ActivityLOg.log(ActivityLOg.Type.STUDENT, edited.fullName() + "'s record was updated");
 		JOptionPane.showMessageDialog(this, "Student record updated.", "Saved", JOptionPane.INFORMATION_MESSAGE);
@@ -299,7 +291,9 @@ public class StudentDetailDialog extends JDialog {
 		if (choice != JOptionPane.YES_OPTION) {
 			return;
 		}
-		StudentService.delete(record.studentId);
+		if (!StudentService.delete(record.studentId)) {
+			return;
+		}
 		ActivityLOg.log(ActivityLOg.Type.DELETED, record.fullName() + "'s record was deleted");
 		onChanged.run();
 		dispose();

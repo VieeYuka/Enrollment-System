@@ -167,13 +167,14 @@ public class ExitFrame extends JFrame {
 		setEnrollmentStatus(EnrollmentService.getStatus(studentKey));
 	}
 
-	/** Shows "Enrolled" (green) or anything else as "Pending" (amber). */
+	/** Shows Enrolled (green), Denied (red) or anything else as Pending (amber). */
 	public void setEnrollmentStatus(String status) {
 		boolean enrolled = EnrollmentService.ENROLLED.equalsIgnoreCase(status);
-		Color fg = enrolled ? TuitionFrame.PAID_GREEN : PENDING_FG;
-		Color bg = enrolled ? TuitionFrame.PAID_BG : PENDING_BG;
+		boolean denied = EnrollmentService.DENIED.equalsIgnoreCase(status);
+		Color fg = enrolled ? TuitionFrame.PAID_GREEN : denied ? TuitionFrame.UNPAID_RED : PENDING_FG;
+		Color bg = enrolled ? TuitionFrame.PAID_BG : denied ? TuitionFrame.UNPAID_BG : PENDING_BG;
 
-		lblStatus.setText(enrolled ? EnrollmentService.ENROLLED : EnrollmentService.PENDING);
+		lblStatus.setText(enrolled ? EnrollmentService.ENROLLED : denied ? EnrollmentService.DENIED : EnrollmentService.PENDING);
 		lblStatus.setForeground(fg);
 		lblStatus.setBackground(bg);
 		lblStatus.setBorder(BorderFactory.createCompoundBorder(

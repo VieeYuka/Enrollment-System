@@ -10,7 +10,12 @@ public class SecurePass {
 		
 		
 		
-		boolean check = BCrypt.checkpw(password, hash);
+		boolean check;
+		try {
+			check = BCrypt.checkpw(password, hash);
+		} catch (IllegalArgumentException e) {
+			check = false; // stored value is not a valid BCrypt hash
+		}
 		
 		return check;
 		

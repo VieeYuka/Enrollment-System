@@ -1,12 +1,8 @@
 package oopSource;
 
 /**
- * The four numbers on the dashboard cards. DashboardFrame asks this class
- * every few seconds, so the cards always show current values.
- *
- * Right now the numbers come from the in-memory placeholder services.
- * When MySQL is ready, replace each body with the SQL shown above it
- * (nothing in DashboardFrame has to change).
+ * The four numbers on the dashboard cards, read live from MySQL.
+ * DashboardFrame asks this class every few seconds.
  */
 public final class DashboardService {
 

@@ -18,6 +18,9 @@ public final class Session {
 	private static String course = "N/A";
 	private static String yearLevel = "N/A";
 
+	// true when studentKey really is a student record that subjects can be enrolled for
+	private static boolean enrollTarget = false;
+
 	private Session() {
 	}
 
@@ -29,6 +32,7 @@ public final class Session {
 		fullName = user;
 		course = "N/A";
 		yearLevel = "N/A";
+		enrollTarget = false;
 
 		if (Roles.normalize(userRole).equals(Roles.STUDENT)) {
 			// TODO (database): load the student row that belongs to this username
@@ -38,6 +42,7 @@ public final class Session {
 				fullName = s.firstName + " " + s.lastName;
 				course = s.course;
 				yearLevel = s.yearLevel;
+				enrollTarget = true;
 			}
 		}
 	}
@@ -50,7 +55,33 @@ public final class Session {
 		fullName = name;
 		course = studentCourse;
 		yearLevel = year;
+		enrollTarget = true;
 	}
+
+	/**
+	 * Staff enrolling subjects ON BEHALF of a student (e.g. right after "+ Add New Student").
+	 * Unlike startApplicant, the staff member stays logged in with their own role.
+	 */
+	public static void enrollFor(String studentNumber, String name, String studentCourse, String year) {
+		studentKey = studentNumber;
+		fullName = name;
+		course = studentCourse;
+		yearLevel = year;
+		enrollTarget = true;
+	}
+
+	/** Forget the student staff were enrolling for. */
+	public static void clearEnrollTarget() {
+		if (!Roles.normalize(role).equals(Roles.STUDENT) && !Roles.normalize(role).equals(Roles.APPLICANT)) {
+			studentKey = "";
+			fullName = "";
+			course = "N/A";
+			yearLevel = "N/A";
+			enrollTarget = false;
+		}
+	}
+
+	public static boolean hasEnrollTarget() { return enrollTarget; }
 
 	public static String username() { return username; }
 	public static String role() { return role; }

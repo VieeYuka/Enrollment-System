@@ -218,7 +218,7 @@ public class EnrollFrame extends JFrame {
 		gbc_txtLastName.gridy = 3;
 		formPanel.add(txtLastName, gbc_txtLastName);
 
-		JLabel lblEmail = new JLabel("<html>Email Address <font color='#D32F2F'>*</font></html>");
+		JLabel lblEmail = new JLabel("<html>Personal Email Address <font color='#D32F2F'>*</font></html>");
 		lblEmail.setFont(new Font("Arial", Font.BOLD, 13));
 		GridBagConstraints gbc_lblEmail = new GridBagConstraints();
 		gbc_lblEmail.anchor = GridBagConstraints.WEST;
@@ -438,8 +438,11 @@ public class EnrollFrame extends JFrame {
 			return;
 		}
 
-		// TODO (database): middleName, gender and address have no column in "students" yet.
-		StudentService.StudentRecord saved = StudentService.add(firstName, lastName, email, course, yearLevel);
+		StudentService.StudentRecord saved = StudentService.addEnrollee(
+		        firstName, middleName, lastName, email, course, yearLevel, gender, address);
+		if (saved == null) {
+			return; // the service already explained why
+		}
 		ActivityLOg.log(ActivityLOg.Type.STUDENT, saved.fullName() + " was added as a new student");
 
 		if (applicantMode) {
@@ -450,9 +453,14 @@ public class EnrollFrame extends JFrame {
 		}
 
 		JOptionPane.showMessageDialog(this, "Student saved:\n" + saved.fullName() + "\nID: " + saved.studentId
-				+ "\nEmail: " + email + "\n" + gender + " | " + yearLevel + " - " + course,
+				+ "\nUniversity email: " + saved.email
+				+ "\nPersonal email: " + email + "\n" + gender + " | " + yearLevel + " - " + course
+				+ "\n\nNext: choose the subjects for this student.",
 				"Saved", JOptionPane.INFORMATION_MESSAGE);
-		goBack();
+
+		// Staff stay logged in; the subject list now enrolls THIS student.
+		Session.enrollFor(saved.studentId, saved.fullName(), course, yearLevel);
+		Sidebar.navigate(this, new CoursesFrame(Session.username(), Session.role()));
 	}
 
 	// =================================================================

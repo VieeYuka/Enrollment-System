@@ -17,6 +17,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.List;
 import java.net.URL;
 
 import javax.swing.BorderFactory;
@@ -30,9 +33,11 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextField;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -56,17 +61,18 @@ public class EnrollmentStudent extends JFrame {
 
 	private static final String VIEW_LIST = "list";
 	private static final String VIEW_REVIEW = "review";
-	private static final String ALL_STATUSES = "All Statuses";
+	
 
 	// Table columns
-	private static final int STATUS_COL = 5;
-	private static final int ACTIONS_COL = 6;
+	private static final int STATUS_COL = 4;
+	private static final int ACTIONS_COL = 5;
 
 	// Dark Teal Theme Colors
 	private static final Color DARK_TEAL = new Color(11, 55, 49);
 	private static final Color LIGHT_BG = new Color(235, 235, 235);
 	private static final Color ACCENT_GREEN = new Color(38, 128, 98);
 	private static final Color DISABLED_GRAY = new Color(170, 178, 176);
+	private static final Color DENY_RED = new Color(192, 57, 43);
 	private static final Color PENDING_AMBER = new Color(156, 101, 0);
 
 	private final String loggedInUser;
@@ -81,7 +87,7 @@ public class EnrollmentStudent extends JFrame {
 	private DefaultTableModel tableModel;
 	private JTable table;
 	private SearchField txtSearch;
-	private JComboBox<String> cmbStatus;
+	
 
 	// review view
 	private JLabel lblStudentIdValue;
@@ -92,6 +98,7 @@ public class EnrollmentStudent extends JFrame {
 	private JLabel lblTotals;
 	private JPanel selectedListPanel;
 	private JButton btnApprove;
+	private JButton btnDeny;
 	private String reviewingKey; // student whose application is open in the review view
 
 	/**
@@ -169,6 +176,46 @@ public class EnrollmentStudent extends JFrame {
 
 		loadTable();
 		showList();
+
+		// New applications are submitted from other screens/computers, so keep the list current.
+		refreshTimer = new Timer(3000, new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				autoRefresh();
+			}
+		});
+		refreshTimer.start();
+		addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowActivated(WindowEvent e) {
+				autoRefresh();
+			}
+		});
+	}
+
+	private Timer refreshTimer;
+
+	/** Reloads the pending list only when it changed (and only while the list is showing). */
+	private void autoRefresh() {
+		if (reviewingKey != null) {
+			return;
+		}
+		List<EnrollmentService.Enrollment> latest =
+				EnrollmentService.search(txtSearch.getQuery(), EnrollmentService.PENDING);
+		boolean same = latest.size() == tableModel.getRowCount();
+		for (int i = 0; same && i < latest.size(); i++) {
+			same = latest.get(i).studentKey.equals(String.valueOf(tableModel.getValueAt(i, 0)));
+		}
+		if (!same) {
+			loadTable();
+		}
+	}
+
+	@Override
+	public void dispose() {
+		if (refreshTimer != null) {
+			refreshTimer.stop();
+		}
+		super.dispose();
 	}
 
 	// =================================================================
@@ -218,32 +265,24 @@ public class EnrollmentStudent extends JFrame {
 		card.setLayout(new BorderLayout(0, 15));
 		card.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-		// ---- Search (ID or name) + status filter ----
+		
+
 		JPanel filterRow = new JPanel(new BorderLayout(10, 0));
 		filterRow.setOpaque(false);
 		card.add(filterRow, BorderLayout.NORTH);
 
 		txtSearch = new SearchField("Search student ID or name...", 0, new Runnable() {
-			public void run() {
-				loadTable();
-			}
+		    public void run() {
+		        loadTable();
+		    }
 		});
+
 		txtSearch.setPreferredSize(new Dimension(0, 38));
+
 		filterRow.add(txtSearch, BorderLayout.CENTER);
 
-		cmbStatus = new JComboBox<String>(new String[] {
-				ALL_STATUSES, EnrollmentService.PENDING, EnrollmentService.ENROLLED});
-		cmbStatus.setFont(new Font("Arial", Font.PLAIN, 13));
-		cmbStatus.setPreferredSize(new Dimension(200, 38));
-		cmbStatus.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				loadTable();
-			}
-		});
-		filterRow.add(cmbStatus, BorderLayout.EAST);
-
 		// ---- Table ----
-		String[] columns = {"Student ID", "Name", "Course", "Year Level", "Units", "Status", "Actions"};
+		String[] columns = {"Student ID", "Name", "Course", "Year Level", "Status", "Actions"};
 		tableModel = new DefaultTableModel(columns, 0) {
 			private static final long serialVersionUID = 1L;
 
@@ -307,12 +346,20 @@ public class EnrollmentStudent extends JFrame {
 
 	/** Fills the table with the applications that match the search box and the status filter. */
 	private void loadTable() {
-		tableModel.setRowCount(0);
-		String status = String.valueOf(cmbStatus.getSelectedItem());
-		for (EnrollmentService.Enrollment e : EnrollmentService.search(txtSearch.getQuery(), status)) {
-			tableModel.addRow(new Object[] {
-					e.studentKey, e.name, e.course, e.yearLevel, e.units, e.status, "" });
-		}
+	    tableModel.setRowCount(0);
+
+	    for (EnrollmentService.Enrollment e :
+	            EnrollmentService.search(txtSearch.getQuery(), EnrollmentService.PENDING)) {
+
+	        tableModel.addRow(new Object[] {
+	                e.studentKey,
+	                e.name,
+	                e.course,
+	                e.yearLevel,
+	                e.status,
+	                ""
+	        });
+	    }
 	}
 
 	// =================================================================
@@ -463,8 +510,28 @@ public class EnrollmentStudent extends JFrame {
 				confirmApproval();
 			}
 		});
+		btnDeny = new JButton("Deny");
+		btnDeny.setFont(new Font("Arial", Font.BOLD, 13));
+		btnDeny.setBackground(DENY_RED);
+		btnDeny.setForeground(Color.WHITE);
+		btnDeny.setOpaque(true);
+		btnDeny.setBorderPainted(false);
+		btnDeny.setFocusPainted(false);
+		btnDeny.setCursor(new Cursor(Cursor.HAND_CURSOR));
+		btnDeny.setPreferredSize(new Dimension(110, 38));
+		btnDeny.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				confirmDenial();
+			}
+		});
+		GridBagConstraints gbcDeny = new GridBagConstraints();
+		gbcDeny.gridx = 1;
+		gbcDeny.gridy = 0;
+		gbcDeny.insets = new Insets(0, 0, 0, 10);
+		buttonRow.add(btnDeny, gbcDeny);
+
 		GridBagConstraints gbcApprove = new GridBagConstraints();
-		gbcApprove.gridx = 1;
+		gbcApprove.gridx = 2;
 		gbcApprove.gridy = 0;
 		buttonRow.add(btnApprove, gbcApprove);
 
@@ -539,10 +606,16 @@ public class EnrollmentStudent extends JFrame {
 		lblTotals.setText("Total Subjects: " + app.subjectCount() + "     |     Total Units: " + app.units);
 
 		// Already enrolled -> nothing left to approve
+		// Only a Pending application can be approved or denied; a decision is final.
 		boolean canApprove = EnrollmentService.PENDING.equals(app.status);
 		btnApprove.setEnabled(canApprove);
 		btnApprove.setBackground(canApprove ? ACCENT_GREEN : DISABLED_GRAY);
 		btnApprove.setCursor(canApprove ? new Cursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
+
+		boolean canDeny = EnrollmentService.PENDING.equals(app.status);
+		btnDeny.setEnabled(canDeny);
+		btnDeny.setBackground(canDeny ? DENY_RED : DISABLED_GRAY);
+		btnDeny.setCursor(canDeny ? new Cursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
 
 		cardLayout.show(cardHolder, VIEW_REVIEW);
 	}
@@ -550,7 +623,8 @@ public class EnrollmentStudent extends JFrame {
 	private void showStatus(String status) {
 		boolean enrolled = EnrollmentService.ENROLLED.equals(status);
 		lblStatusValue.setText(status);
-		lblStatusValue.setForeground(enrolled ? TuitionFrame.PAID_GREEN : PENDING_AMBER);
+		lblStatusValue.setForeground(enrolled ? TuitionFrame.PAID_GREEN
+				: EnrollmentService.DENIED.equals(status) ? DENY_RED : PENDING_AMBER);
 	}
 
 	/** One line in the Selected Subjects list: "CCS101  Introduction to Computing   3 units". */
@@ -596,6 +670,32 @@ public class EnrollmentStudent extends JFrame {
 		}
 	}
 
+	/** [Deny] button: asks for an optional reason, then denies the application. */
+	private void confirmDenial() {
+		if (reviewingKey == null) {
+			return;
+		}
+		String name = lblNameValue.getText();
+		JTextField txtReason = new JTextField(28);
+		Object[] message = { "Deny the enrollment application of " + name + "?", " ",
+				"Reason (optional):", txtReason };
+		int choice = JOptionPane.showConfirmDialog(this, message, "Deny Application",
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+		if (choice != JOptionPane.OK_OPTION) {
+			return;
+		}
+		boolean denied = EnrollmentService.deny(reviewingKey, txtReason.getText());
+		
+		if (denied) {
+			
+			showList();
+			reviewingKey = null;
+		} else {
+			JOptionPane.showMessageDialog(this, "This application can no longer be denied (it was already decided).",
+					"Not Denied", JOptionPane.WARNING_MESSAGE);
+		}
+	}
+
 	/**
 	 * Does the approval (no pop-ups): status Pending -> Enrolled, then back to the list.
 	 * @return true if it was approved
@@ -631,7 +731,8 @@ public class EnrollmentStudent extends JFrame {
 			if (statusColumn) {
 				boolean enrolled = EnrollmentService.ENROLLED.equals(String.valueOf(value));
 				setFont(new Font("Arial", Font.BOLD, 13));
-				setForeground(enrolled ? TuitionFrame.PAID_GREEN : PENDING_AMBER);
+				setForeground(enrolled ? TuitionFrame.PAID_GREEN
+						: EnrollmentService.DENIED.equals(String.valueOf(value)) ? DENY_RED : PENDING_AMBER);
 			} else {
 				setFont(new Font("Arial", Font.PLAIN, 13));
 				setForeground(Color.BLACK);

@@ -15,8 +15,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -60,8 +58,7 @@ public class TuitionFrame extends JFrame {
 	static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
 
 	// =================================================================
-	// SHARED TUITION DATA (kept in memory so it survives frame changes)
-	// Replace with MySQL queries later.
+	// TUITION DATA (loaded from MySQL by PaymentService)
 	// =================================================================
 	public static class TuitionRecord {
 		public final String studentId;
@@ -69,6 +66,7 @@ public class TuitionFrame extends JFrame {
 		public final String course;
 		public final String yearLevel;
 		public final int units;
+		public int enrollmentId;
 
 		public boolean paid;
 		public String paymentMethod = "";
@@ -93,40 +91,13 @@ public class TuitionFrame extends JFrame {
 		}
 	}
 
-	private static final List<TuitionRecord> RECORDS = new ArrayList<TuitionRecord>();
-
-	static {
-		// Placeholder data
-		RECORDS.add(new TuitionRecord("RU-2026-0001", "Santos, Maria A.", "BSIT", "1st Year", 21));
-		RECORDS.add(new TuitionRecord("RU-2026-0002", "Dela Cruz, Juan", "BSCS", "1st Year", 24));
-		RECORDS.add(new TuitionRecord("RU-2026-0003", "Doe, John", "BSBA", "2nd Year", 18));
-		RECORDS.add(new TuitionRecord("RU-2026-0004", "Smith, Anne", "BSCpE", "3rd Year", 21));
-		RECORDS.get(3).paid = true;
-		RECORDS.get(3).paymentMethod = "Cash";
-		RECORDS.get(3).amountReceived = 6500;
-		RECORDS.get(3).change = 200;
-		RECORDS.get(3).datePaid = "2026-09-04";
-	}
-
-	/**
-	 * Call this from the admin dashboard when an enrollment is APPROVED.
-	 * The student then appears in the Tuition table as "Unpaid".
-	 */
-	public static void addApprovedStudent(String studentId, String name, String course, String yearLevel, int units) {
-		if (findById(studentId) == null) {
-			RECORDS.add(new TuitionRecord(studentId, name, course, yearLevel, units));
-		}
-	}
-
+	/** Tuition records come from MySQL (approved enrollments + their payments). */
 	public static List<TuitionRecord> getRecords() {
-		return Collections.unmodifiableList(RECORDS);
+		return PaymentService.loadRecords();
 	}
 
 	public static TuitionRecord findById(String studentId) {
-		for (TuitionRecord r : RECORDS) {
-			if (r.studentId.equals(studentId)) return r;
-		}
-		return null;
+		return PaymentService.find(studentId);
 	}
 
 	/**
@@ -329,7 +300,7 @@ public class TuitionFrame extends JFrame {
 	// =================================================================
 	private void loadTable() {
 		tuitionTableModel.setRowCount(0);
-		for (TuitionRecord r : RECORDS) {
+		for (TuitionRecord r : getRecords()) {
 			tuitionTableModel.addRow(new Object[] {
 					r.studentId, r.name, r.course, r.yearLevel, r.units,
 					PESO + MONEY.format(r.getTotalDue()), r.getStatus()

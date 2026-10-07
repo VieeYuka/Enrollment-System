@@ -203,7 +203,9 @@ public class EnrollmentSummaryFrame extends JFrame {
 	 * staff go back to their own home screen.
 	 */
 	private void confirmEnrollment(List<Object[]> rows) {
-		EnrollmentService.submit(Session.studentKey(), Session.fullName(), Session.course(), Session.yearLevel(), rows);
+		if (EnrollmentService.submit(Session.studentKey(), Session.fullName(), Session.course(), Session.yearLevel(), rows) == null) {
+			return; // not saved - stay here so nothing is lost
+		}
 
 		JFrame next;
 		if (Roles.endsSessionAfterEnrollment(loggedInRole)) {
@@ -211,6 +213,7 @@ public class EnrollmentSummaryFrame extends JFrame {
 		} else {
 			JOptionPane.showMessageDialog(this, "Enrollment submitted successfully!", "Success",
 					JOptionPane.INFORMATION_MESSAGE);
+			Session.clearEnrollTarget();
 			next = Roles.landingFrame(loggedInUser, loggedInRole);
 		}
 		next.setBounds(getBounds());
