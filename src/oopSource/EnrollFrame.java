@@ -405,6 +405,29 @@ public class EnrollFrame extends JFrame {
 		target.setVisible(true);
 		dispose();
 	}
+	
+	private boolean isTrollName(String name) {
+		String lower = name.toLowerCase();
+
+		// 1. Blocks single-character or blank entries
+		if (name.length() < 2) return true; 
+
+		// 2. Blocks standard dummy/placeholder strings
+		if (lower.equals("test") || lower.equals("asdf") || lower.equals("qwerty") || 
+			lower.equals("none") || lower.equals("null") || lower.equals("placeholder")) {
+			return true;
+		}
+
+		// 3. Blocks consecutive identical characters (e.g., "aaaaa")
+		if (lower.matches("([a-z])\\1{3,}")) return true;
+
+		// 4. Rejects raw numerical inputs, symbols, or profanity shortcuts
+		if (!name.matches("^[a-zA-Z\\s.\\-]+$")) return true;
+
+		return false; // Valid input
+	}
+	
+	
 
 	/**
 	 * Validates the inputs and saves the student.
@@ -424,6 +447,13 @@ public class EnrollFrame extends JFrame {
 			JOptionPane.showMessageDialog(this, "First Name, Last Name, Email, and Address are required.",
 					"Missing Information", JOptionPane.WARNING_MESSAGE);
 			return;
+		}
+		
+		if (isTrollName(firstName) || isTrollName(lastName)) {
+		    JOptionPane.showMessageDialog(this, 
+		        "Please enter a valid legal name. Placeholders or keyboard smashes are blocked.", 
+		        "Invalid Name Detection", JOptionPane.WARNING_MESSAGE);
+		    return;
 		}
 
 		if (!email.contains("@")) {

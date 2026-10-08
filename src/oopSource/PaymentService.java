@@ -69,11 +69,7 @@ public final class PaymentService {
 		return null;
 	}
 
-	/**
-	 * Saves the payment and updates the record.
-	 *
-	 * @return true when saved; false when it was already paid or the database failed
-	 */
+	
 	public static boolean pay(TuitionFrame.TuitionRecord record, String method,
 			double amountReceived, String receivedBy) {
 
@@ -116,6 +112,15 @@ public final class PaymentService {
 		record.change = change;
 		record.datePaid = new java.text.SimpleDateFormat("yyyy-MM-dd").format(now);
 		return true;
+	}
+	private static boolean installment (TuitionFrame.TuitionRecord record, String method,double amountReceived, String receivedBy) {
+		double due = record.getTotalDue();
+		double updatedDue = amountReceived - due;
+	    double downpayment = amountReceived;
+		
+		
+		return true;
+		
 	}
 
 	private static TuitionFrame.TuitionRecord map(ResultSet rs) throws SQLException {

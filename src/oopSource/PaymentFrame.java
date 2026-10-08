@@ -246,7 +246,7 @@ public class PaymentFrame extends JFrame {
 		row.setOpaque(false);
 
 		// Payment method
-		cmbMethod = new JComboBox<String>(new String[] {"Cash", "GCash", "Credit / Debit Card", "Bank Transfer"});
+		cmbMethod = new JComboBox<String>(new String[] {"Cash", "GCash", "Credit / Debit Card", "Bank Transfer", "Instalmment"});
 		cmbMethod.setFont(new Font("Arial", Font.PLAIN, 14));
 		cmbMethod.setPreferredSize(new Dimension(0, 42));
 		row.add(captioned("Payment Method", cmbMethod));
@@ -384,7 +384,8 @@ public class PaymentFrame extends JFrame {
 	private void confirmPayment() {
 		double amount = parseAmount();
 		double due = record.getTotalDue();
-
+		double MAX_ALLOWED_PAYMENT = 1000000.00;
+		
 		if (amount < 0) {
 			JOptionPane.showMessageDialog(this, "Please enter a valid amount received.",
 					"Invalid Amount", JOptionPane.WARNING_MESSAGE);
@@ -393,6 +394,12 @@ public class PaymentFrame extends JFrame {
 		if (amount < due) {
 			JOptionPane.showMessageDialog(this,
 					"Amount received is less than the total due (" + PESO + TuitionFrame.MONEY.format(due) + ").",
+					"Insufficient Payment", JOptionPane.WARNING_MESSAGE);
+			return;
+		}
+		if(amount > MAX_ALLOWED_PAYMENT) {
+			JOptionPane.showMessageDialog(this,
+					"Amount received is greater than the total due (" + PESO + TuitionFrame.MONEY.format(due) + ").",
 					"Insufficient Payment", JOptionPane.WARNING_MESSAGE);
 			return;
 		}

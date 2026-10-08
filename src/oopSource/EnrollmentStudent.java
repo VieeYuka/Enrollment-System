@@ -119,23 +119,17 @@ public class EnrollmentStudent extends JFrame {
 		});
 	}
 
-	/**
-	 * Default constructor
-	 */
+	
 	public EnrollmentStudent() {
 		this(Session.username(), Session.role());
 	}
 
-	/**
-	 * Create the frame.
-	 */
+	
 	public EnrollmentStudent(String username) {
 		this(username, Session.role());
 	}
 
-	/**
-	 * Create the frame.
-	 */
+	
 	public EnrollmentStudent(String username, String role) {
 		this.loggedInUser = username;
 		this.loggedInRole = role;

@@ -36,10 +36,7 @@ public class EnrollmentSummaryFrame extends JFrame {
 	private static final Color LIGHT_BG = new Color(235, 235, 235);
 	private static final Color ACCENT_GREEN = new Color(38, 128, 98);
 
-	/**
-	 * @param rows each row = {code, title, units, department}
-	 * @param parent the hidden CoursesFrame, restored when "Back" is pressed
-	 */
+	
 	public EnrollmentSummaryFrame(String username, List<Object[]> rows, CoursesFrame parent, String role) {
 		this.loggedInUser = username;
 		this.parent = parent;
